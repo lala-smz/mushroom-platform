@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'http://localhost:3303/api',
+  baseURL: 'https://grateful-renewal-production-b1b1.up.railway.app/api',
   timeout: 90000, // 增加超时时间到90秒
   headers: {
     'Content-Type': 'application/json'
