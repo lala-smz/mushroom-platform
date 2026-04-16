@@ -9,6 +9,8 @@ router.get('/health', (req, res) => {
 
 router.post('/init-db', testController.initDatabase);
 
+router.post('/test-login', testController.testLogin);
+
 router.get('/mushroom-boxes', testController.getMushroomBoxes);
 
 module.exports = router;

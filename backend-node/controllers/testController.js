@@ -44,6 +44,51 @@ class TestController {
     }
   }
 
+  static async testLogin(req, res) {
+    try {
+      const { username, password } = req.body;
+      const result = {};
+
+      result.step1 = '查找用户';
+      const user = await User.findOne({ where: { username } });
+      if (!user) {
+        return res.status(200).json({ ...result, error: '用户不存在' });
+      }
+      result.userFound = true;
+      result.userId = user.id;
+
+      result.step2 = '验证密码';
+      const isValid = bcrypt.compareSync(password, user.password);
+      result.passwordValid = isValid;
+
+      if (!isValid) {
+        return res.status(200).json({ ...result, error: '密码不正确' });
+      }
+
+      result.step3 = '验证用户状态';
+      result.userStatus = user.status;
+
+      result.step4 = '测试更新lastLoginAt';
+      try {
+        await user.update({ lastLoginAt: new Date() });
+        result.updateSuccess = true;
+      } catch (e) {
+        result.updateSuccess = false;
+        result.updateError = e.message;
+        return res.status(200).json({ ...result, error: '更新lastLoginAt失败' });
+      }
+
+      res.status(200).json({ ...result, success: true, message: '登录测试成功' });
+    } catch (error) {
+      console.error('测试登录失败:', error);
+      res.status(500).json({
+        success: false,
+        error: '测试登录失败: ' + error.message,
+        stack: error.stack
+      });
+    }
+  }
+
   static async getMushroomBoxes(req, res) {
     try {
       // 模拟时令菌菇盲盒数据
