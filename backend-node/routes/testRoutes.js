@@ -4,8 +4,10 @@ const testController = require('../controllers/testController');
 
 // 测试路由
 router.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: '后端服务正常运行', timestamp: new Date() });
+  res.json({ status: 'ok', message: '鍚庣鏈嶅姟姝ｅ父杩愯', timestamp: new Date() });
 });
+
+router.post('/init-db', testController.initDatabase);
 
 router.get('/mushroom-boxes', testController.getMushroomBoxes);
 

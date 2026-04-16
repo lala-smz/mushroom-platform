@@ -1,10 +1,50 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db');
+const bcrypt = require('bcryptjs');
+const User = require('../models/User');
+const Category = require('../models/Category');
+const Product = require('../models/Product');
 
 /**
  * 测试控制器 - 返回模拟的菌菇盲盒数据
  */
 class TestController {
+  static async initDatabase(req, res) {
+    try {
+      await sequelize.sync({ force: true });
+
+      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      await User.bulkCreate([
+        { id: 1, username: 'admin', password: hashedPassword, email: 'admin@example.com', phone: '13800138000', role: 'admin', status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 2, username: 'aaa', password: hashedPassword, email: 'aaa@example.com', phone: '13800138001', role: 'seller', status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 3, username: 'user1', password: hashedPassword, email: 'user1@example.com', phone: '13800138002', role: 'user', status: true, createdAt: new Date(), updatedAt: new Date() }
+      ]);
+
+      await Category.bulkCreate([
+        { id: 1, name: '时令盲盒', parent_id: 0, sort_order: 1, status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 2, name: '新鲜菌菇', parent_id: 0, sort_order: 2, status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 3, name: '干货特产', parent_id: 0, sort_order: 3, status: true, createdAt: new Date(), updatedAt: new Date() }
+      ]);
+
+      await Product.bulkCreate([
+        { id: 1, name: '香菇', description: '新鲜香菇，产地直发', price: 25.00, stock: 100, category_id: 2, image: '/images/mushroom1.jpg', status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 2, name: '金针菇', description: '新鲜金针菇，口感鲜美', price: 15.00, stock: 200, category_id: 2, image: '/images/mushroom2.jpg', status: true, createdAt: new Date(), updatedAt: new Date() },
+        { id: 3, name: '时令盲盒A', description: '精选时令双菇盲盒', price: 99.00, stock: 50, category_id: 1, image: '/images/box1.jpg', status: true, createdAt: new Date(), updatedAt: new Date() }
+      ]);
+
+      res.status(200).json({
+        success: true,
+        message: '数据库初始化成功'
+      });
+    } catch (error) {
+      console.error('数据库初始化失败:', error);
+      res.status(500).json({
+        success: false,
+        error: '数据库初始化失败: ' + error.message
+      });
+    }
+  }
+
   static async getMushroomBoxes(req, res) {
     try {
       // 模拟时令菌菇盲盒数据
