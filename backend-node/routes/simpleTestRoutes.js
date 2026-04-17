@@ -1,9 +1,29 @@
 const express = require('express');
 const router = express.Router();
+const { sequelize } = require('../config/db');
 
 // 最简单的测试路由
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', message: '后端服务正常运行', timestamp: new Date() });
+});
+
+router.get('/db-charset', async (req, res) => {
+  try {
+    const results = await sequelize.query("SHOW VARIABLES LIKE 'character_set_%'");
+    const charsetVars = {};
+    results[0].forEach(row => {
+      charsetVars[row.Variable_name] = row.Value;
+    });
+    
+    const collationResults = await sequelize.query("SHOW VARIABLES LIKE 'collation_%'");
+    collationResults[0].forEach(row => {
+      charsetVars[row.Variable_name] = row.Value;
+    });
+    
+    res.json({ success: true, data: charsetVars });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 router.get('/boxes', (req, res) => {
