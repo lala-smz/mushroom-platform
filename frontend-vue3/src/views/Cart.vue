@@ -189,6 +189,7 @@ import { useCartStore } from '../stores/useCartStore'
 import { useProductStore } from '../stores/useProductStore'
 import { useMushroomBoxStore } from '../stores/useMushroomBoxStore'
 import { useUserStore } from '../stores/useUserStore'
+import { getPlaceholderImage } from '../utils/imageUtils.js'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -306,7 +307,7 @@ const getItemImageSrc = (item) => {
     }
     return src
   }
-  return '/images/placeholder-mushroom-300.svg'
+  return getPlaceholderImage('300')
 }
 
 // 获取预览图片列表
@@ -319,7 +320,7 @@ const getPreviewImages = (item) => {
       return img
     })
   }
-  return ['/images/placeholder-mushroom-300.svg']
+  return [getPlaceholderImage('300')]
 }
 
 // 已选商品数量

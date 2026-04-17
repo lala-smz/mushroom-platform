@@ -127,7 +127,7 @@
                 {{ item.quantity || 1 }}个
               </div>
               <img 
-                :src="normalizeImageUrl(item.image) || '/images/placeholder-mushroom-150.svg'" 
+                :src="normalizeImageUrl(item.image) || getPlaceholderImage('150')" 
                 :alt="item.mushroomName || '未知菌菇'" 
                 class="item-image"
                 @error="handleImageError"
@@ -333,7 +333,7 @@
         >
           <div class="history-mushroom">
             <img 
-              :src="normalizeImageUrl(record.items?.[0]?.image || record.items?.[0]?.mushroom?.image) || '/images/placeholder-mushroom-150.svg'" 
+              :src="normalizeImageUrl(record.items?.[0]?.image || record.items?.[0]?.mushroom?.image) || getPlaceholderImage('150')" 
               :alt="record.items?.[0]?.mushroomName || record.items?.[0]?.mushroom?.name || '未知菌菇'" 
               @error="handleImageError"
             >
@@ -432,6 +432,7 @@ import eventBus, { EventTypes } from '../utils/eventBus.js'
 import VideoPlayer from './VideoPlayer.vue'
 import { useRecipeStore } from '../stores/useRecipeStore'
 import { useRouter } from 'vue-router'
+import { getPlaceholderImage } from '../utils/imageUtils.js'
 
 // 状态管理
 const isDrawing = ref(false)
@@ -484,7 +485,7 @@ const normalizeImageUrl = (url) => {
 
 // 图片加载错误处理函数
 const handleImageError = (event) => {
-  event.target.src = '/images/placeholder-mushroom-150.svg';
+  event.target.src = getPlaceholderImage('150');
 };
 
 // 计算总商品数量

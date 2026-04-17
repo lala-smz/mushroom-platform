@@ -30,15 +30,26 @@ export function getImageUrl(imagePath) {
   return getPlaceholderImage()
 }
 
-export function getPlaceholderImage(size = '300') {
+export function getPlaceholderImage(size = '300', type = 'mushroom') {
   const placeholderImages = {
-    '150': BASE_URL + 'images/placeholder-mushroom-150.svg',
-    '300': BASE_URL + 'images/placeholder-mushroom-300.svg',
-    '400': BASE_URL + 'images/placeholder-mushroom-400.svg',
-    '800': BASE_URL + 'images/placeholder-mushroom-800.svg'
+    mushroom: {
+      '50': BASE_URL + 'images/placeholder-mushroom-50.svg',
+      '100': BASE_URL + 'images/placeholder-mushroom-100.svg',
+      '150': BASE_URL + 'images/placeholder-mushroom-150.svg',
+      '300': BASE_URL + 'images/placeholder-mushroom-300.svg',
+      '400': BASE_URL + 'images/placeholder-mushroom-400.svg',
+      '800': BASE_URL + 'images/placeholder-mushroom-800.svg'
+    },
+    recipe: {
+      '200': BASE_URL + 'images/placeholder-recipe-200.svg'
+    },
+    video: {
+      '300': BASE_URL + 'images/placeholder-video-300.svg'
+    }
   }
   
-  return placeholderImages[size] || placeholderImages['300']
+  const typeImages = placeholderImages[type] || placeholderImages.mushroom
+  return typeImages[size] || typeImages['300'] || BASE_URL + 'images/placeholder-mushroom-300.svg'
 }
 
 export function getUploadUrl() {

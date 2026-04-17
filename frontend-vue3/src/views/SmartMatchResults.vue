@@ -74,7 +74,7 @@
       <div class="mushroom-info-card">
         <div class="mushroom-image">
           <img
-            :src="recipeStore.currentMushroom?.imageUrl || '/images/placeholder-mushroom-300.svg'"
+            :src="recipeStore.currentMushroom?.imageUrl || getPlaceholderImage('300')"
             :alt="recipeStore.currentMushroom?.name"
             class="mushroom-img"
           >
@@ -315,6 +315,7 @@ import { useRecipeStore } from '../stores/useRecipeStore'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import VideoPlayer from '../components/VideoPlayer.vue'
+import { getPlaceholderImage } from '../utils/imageUtils.js'
 
 const recipeStore = useRecipeStore()
 const router = useRouter()

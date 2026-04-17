@@ -151,9 +151,9 @@
             >
               <div class="product-image">
                 <img
-                  :src="product.images && product.images.length > 0 ? product.images[0] : '/images/placeholder-mushroom-300.svg'"
+                  :src="product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage('300')"
                   :alt="product.name"
-                  @error="(e) => e.target.src = '/images/placeholder-mushroom-300.svg'"
+                  @error="(e) => e.target.src = getPlaceholderImage('300')"
                 >
                 <div
                   v-if="product.status === 'pending'"
@@ -234,6 +234,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useProductStore } from '../stores/useProductStore'
+import { getPlaceholderImage } from '../utils/imageUtils.js'
 
 const router = useRouter()
 const productStore = useProductStore()

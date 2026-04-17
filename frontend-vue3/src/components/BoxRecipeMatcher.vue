@@ -22,7 +22,7 @@
           class="mushroom-item"
         >
           <img 
-            :src="normalizeImageUrl(item.mushroom.image) || '/images/placeholder-mushroom-100.svg'" 
+            :src="normalizeImageUrl(item.mushroom.image) || getPlaceholderImage('150')" 
             :alt="item.mushroom.name"
             class="mushroom-image"
             @error="handleImageError"
@@ -257,6 +257,7 @@ import { useMushroomBoxStore } from '../stores/useMushroomBoxStore'
 import { useRecipeStore } from '../stores/useRecipeStore'
 import { ElMessage, ElNotification } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
+import { getPlaceholderImage } from '../utils/imageUtils.js'
 
 const props = defineProps({
   boxId: {
@@ -298,15 +299,15 @@ const handleImageError = (event) => {
   const width = img.naturalWidth || img.width
   
   if (width <= 50) {
-    img.src = '/images/placeholder-mushroom-50.svg'
+    img.src = getPlaceholderImage('50', 'mushroom')
   } else if (width <= 100) {
-    img.src = '/images/placeholder-mushroom-100.svg'
+    img.src = getPlaceholderImage('100', 'mushroom')
   } else if (width <= 150) {
-    img.src = '/images/placeholder-mushroom-150.svg'
+    img.src = getPlaceholderImage('150', 'mushroom')
   } else if (width <= 200) {
-    img.src = '/images/placeholder-recipe-200.svg'
+    img.src = getPlaceholderImage('200', 'recipe')
   } else {
-    img.src = '/images/placeholder-video-300.svg'
+    img.src = getPlaceholderImage('300', 'video')
   }
 }
 

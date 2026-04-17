@@ -142,9 +142,9 @@
             >
               <div class="product-image">
                 <img
-                  :src="product.images && product.images.length > 0 ? product.images[0] : '/images/placeholder-mushroom-300.svg'"
+                  :src="product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage('300')"
                   :alt="product.name"
-                  @error="(e) => e.target.src = '/images/placeholder-mushroom-300.svg'"
+                  @error="(e) => e.target.src = getPlaceholderImage('300')"
                 >
                 <div
                   v-if="product.status === 'pending'"
@@ -222,6 +222,7 @@ import { useProductStore } from '../stores/useProductStore'
 import { useCartStore } from '../stores/useCartStore'
 import { useUserStore } from '../stores/useUserStore'
 import { useMushroomBoxStore } from '../stores/useMushroomBoxStore'
+import { getPlaceholderImage } from '../utils/imageUtils.js'
 
 const router = useRouter()
 const route = useRoute()
