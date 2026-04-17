@@ -720,6 +720,7 @@ app.post('/api/upload', upload.array('files', 10), async (req, res) => {
 // 路由配置
 const testRoutes = require('./routes/testRoutes');
 const simpleTestRoutes = require('./routes/simpleTestRoutes');
+const importRoutes = require('./routes/importRoutes');
 
 // 使用路由
 app.use('/api/users', userRoutes);
@@ -734,6 +735,7 @@ app.use('/api/mushroom-data', mushroomDataRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/simple-test', simpleTestRoutes);
+app.use('/api/import', importRoutes);
 
 // 注册新增路由
 // 为盲盒路由使用单独的速率限制
