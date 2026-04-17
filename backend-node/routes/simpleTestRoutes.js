@@ -50,4 +50,40 @@ router.get('/boxes', (req, res) => {
   res.json({ success: true, data: testBoxes });
 });
 
+router.post('/import-sql', async (req, res) => {
+  try {
+    const { sql } = req.body;
+    
+    if (!sql) {
+      return res.json({ success: false, error: '请提供SQL内容' });
+    }
+    
+    const statements = sql.split(';\n').filter(stmt => stmt.trim().length > 0);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const statement of statements) {
+      const trimmedStmt = statement.trim();
+      if (!trimmedStmt || trimmedStmt.startsWith('--') || trimmedStmt.startsWith('/*')) continue;
+      
+      try {
+        await sequelize.query(trimmedStmt);
+        successCount++;
+      } catch (error) {
+        console.error('SQL执行错误:', error.message);
+        errorCount++;
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `导入完成`,
+      successCount,
+      errorCount
+    });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
