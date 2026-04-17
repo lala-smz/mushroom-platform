@@ -26,6 +26,23 @@ router.get('/db-charset', async (req, res) => {
   }
 });
 
+router.get('/db-info', async (req, res) => {
+  try {
+    const config = sequelize.config;
+    res.json({ 
+      success: true, 
+      data: {
+        database: config.database,
+        host: config.host,
+        port: config.port,
+        username: config.username
+      }
+    });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
 router.get('/boxes', (req, res) => {
   // 返回固定的测试数据
   const testBoxes = [
@@ -58,20 +75,29 @@ router.post('/import-sql', async (req, res) => {
       return res.json({ success: false, error: '请提供SQL内容' });
     }
     
-    const statements = sql.split(';\n').filter(stmt => stmt.trim().length > 0);
+    const statements = sql.split(';').filter(stmt => stmt.trim().length > 0);
     let successCount = 0;
+    let skipCount = 0;
     let errorCount = 0;
+    const errors = [];
     
     for (const statement of statements) {
       const trimmedStmt = statement.trim();
-      if (!trimmedStmt || trimmedStmt.startsWith('--') || trimmedStmt.startsWith('/*')) continue;
+      if (!trimmedStmt || trimmedStmt.startsWith('--') || trimmedStmt.startsWith('/*')) {
+        skipCount++;
+        continue;
+      }
       
       try {
         await sequelize.query(trimmedStmt);
         successCount++;
       } catch (error) {
-        console.error('SQL执行错误:', error.message);
-        errorCount++;
+        if (error.message.includes('ER_TABLE_EXISTS_ERROR')) {
+          skipCount++;
+        } else {
+          errorCount++;
+          errors.push({ statement: trimmedStmt.substring(0, 50) + '...', error: error.message });
+        }
       }
     }
     
@@ -79,7 +105,9 @@ router.post('/import-sql', async (req, res) => {
       success: true, 
       message: `导入完成`,
       successCount,
-      errorCount
+      skipCount,
+      errorCount,
+      errors: errors.slice(0, 10)
     });
   } catch (error) {
     res.json({ success: false, error: error.message });
