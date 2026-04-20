@@ -493,7 +493,7 @@ class MushroomDataService {
       
       const updateResult = await this.updateLocalDatabase(mushroomData);
       
-      await this.updateSyncLog(syncLog.id, {
+      await this.updateSyncLog(syncLog?.id, {
         ...updateResult,
         success: true,
         startAt: startTime
@@ -506,13 +506,13 @@ class MushroomDataService {
       return {
         success: true,
         message: '蘑菇数据更新完成',
-        syncLogId: syncLog.id,
+        syncLogId: syncLog?.id || null,
         ...updateResult
       };
     } catch (error) {
       logger.error('MushroomData', '执行蘑菇数据更新任务失败', error);
       
-      await this.updateSyncLog(syncLog.id, {
+      await this.updateSyncLog(syncLog?.id, {
         success: false,
         startAt: startTime,
         errorMessage: error.message,
@@ -522,7 +522,7 @@ class MushroomDataService {
       return {
         success: false,
         message: `更新失败: ${error.message}`,
-        syncLogId: syncLog.id
+        syncLogId: syncLog?.id || null
       };
     } finally {
       this.isRunning = false;
