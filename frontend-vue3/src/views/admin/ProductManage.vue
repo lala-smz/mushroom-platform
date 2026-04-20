@@ -24,20 +24,65 @@
       </div>
       <div class="filter-form">
         <div class="filter-group">
-          <span class="filter-label">分类</span>
+          <span class="filter-label">一级分类</span>
           <el-select
-            v-model="filterForm.category"
+            v-model="filterForm.level1"
             class="filter-select"
+            placeholder="请选择一级分类"
+            @change="handleLevel1Change"
           >
             <el-option
               value=""
-              label="全部分类"
+              label="全部"
             />
             <el-option
-              v-for="category in categories"
-              :key="category.value"
-              :value="category.value"
-              :label="category.label"
+              v-for="item in level1Options"
+              :key="item.value"
+              :value="item.value"
+              :label="item.label"
+            />
+          </el-select>
+        </div>
+        
+        <div class="filter-group">
+          <span class="filter-label">二级分类</span>
+          <el-select
+            v-model="filterForm.level2"
+            class="filter-select"
+            placeholder="请选择二级分类"
+            :disabled="!filterForm.level1"
+            @change="handleLevel2Change"
+          >
+            <el-option
+              value=""
+              label="全部"
+            />
+            <el-option
+              v-for="item in level2Options"
+              :key="item.value"
+              :value="item.value"
+              :label="item.label"
+            />
+          </el-select>
+        </div>
+        
+        <div class="filter-group">
+          <span class="filter-label">三级分类</span>
+          <el-select
+            v-model="filterForm.level3"
+            class="filter-select"
+            placeholder="请选择三级分类"
+            :disabled="!filterForm.level2"
+          >
+            <el-option
+              value=""
+              label="全部"
+            />
+            <el-option
+              v-for="item in level3Options"
+              :key="item.value"
+              :value="item.value"
+              :label="item.label"
             />
           </el-select>
         </div>
@@ -134,20 +179,29 @@
           width="80"
         />
         <el-table-column
-          prop="category"
           label="一级分类"
           width="100"
-        />
+        >
+          <template #default="scope">
+            {{ getCategoryLabel(scope.row.category, 1) }}
+          </template>
+        </el-table-column>
         <el-table-column
-          prop="subCategory"
           label="二级分类"
           width="100"
-        />
+        >
+          <template #default="scope">
+            {{ getCategoryLabel(scope.row.subCategory, 2) }}
+          </template>
+        </el-table-column>
         <el-table-column
-          prop="subSubCategory"
           label="三级分类"
           width="120"
-        />
+        >
+          <template #default="scope">
+            {{ getCategoryLabel(scope.row.subSubCategory, 3) }}
+          </template>
+        </el-table-column>
         <el-table-column
           prop="status"
           label="状态"
@@ -777,9 +831,19 @@ const refreshStatistics = async () => {
   ElMessage.success('统计数据已刷新')
 }
 
+// 三级分类选项
+const level1Options = ref([])
+const level2Options = ref([])
+const level3Options = ref([])
+
+// 分类树数据
+const categoryTree = ref([])
+
 // 筛选表单
 const filterForm = ref({
-  category: '',
+  level1: '',
+  level2: '',
+  level3: '',
   status: ''
 })
 
@@ -838,28 +902,338 @@ const approveRules = {
   ]
 }
 
+// 加载分类树数据
+const loadCategoryTree = async () => {
+  try {
+    const response = await apiClient.product.getCategoryTree()
+    if (response.success && response.data) {
+      categoryTree.value = response.data
+      // 转换为一级分类选项
+      level1Options.value = response.data.map(item => ({
+        value: item.key,
+        label: item.label
+      }))
+    }
+  } catch (error) {
+    console.error('加载分类树失败:', error)
+  }
+}
+
+// 处理一级分类变化
+const handleLevel1Change = () => {
+  // 清空二级和三级分类
+  filterForm.value.level2 = ''
+  filterForm.value.level3 = ''
+  level2Options.value = []
+  level3Options.value = []
+  
+  if (filterForm.value.level1) {
+    // 查找对应的二级分类
+    const level1Item = categoryTree.value.find(item => item.key === filterForm.value.level1)
+    if (level1Item && level1Item.children) {
+      level2Options.value = level1Item.children.map(item => ({
+        value: item.key,
+        label: item.label
+      }))
+    }
+  }
+}
+
+// 处理二级分类变化
+const handleLevel2Change = () => {
+  // 清空三级分类
+  filterForm.value.level3 = ''
+  level3Options.value = []
+  
+  if (filterForm.value.level1 && filterForm.value.level2) {
+    // 查找对应的三级分类
+    const level1Item = categoryTree.value.find(item => item.key === filterForm.value.level1)
+    if (level1Item && level1Item.children) {
+      const level2Item = level1Item.children.find(item => item.key === filterForm.value.level2)
+      if (level2Item && level2Item.children) {
+        level3Options.value = level2Item.children.map(item => ({
+          value: item.key,
+          label: item.label
+        }))
+      }
+    }
+  }
+}
+
+// 备用分类映射表（作为兜底方案）
+const fallbackCategoryMap = {
+  level1: {
+    'edible': '食用菌',
+    'medicinal': '药用菌',
+    'wild': '野生菌',
+    'mushroomBag': '菌包',
+    'spawn': '菌种',
+    'seasonalBox': '时令菌菇盲盒',
+    'other': '菌菇（兜底）',
+    'freshMushroom': '新鲜蘑菇',
+    'driedMushroom': '干货蘑菇'
+  },
+  level2: {
+    'shiitake': '香菇类',
+    'oyster': '平菇类',
+    'enoki': '金针菇类',
+    'woodEar': '木耳类',
+    'kingOyster': '杏鲍菇类',
+    'crabFlavor': '蟹味菇类',
+    'bambooFungus': '竹荪类',
+    'mixed': '混合菌菇',
+    'ganoderma': '灵芝类',
+    'cordyceps': '冬虫夏草',
+    'antler': '鹿茸菇',
+    'poria': '茯苓类',
+    'otherMedicinal': '其他药用菌',
+    'matsutake': '松茸类',
+    'bolete': '牛肝菌类',
+    'morel': '羊肚菌类',
+    'chanterelle': '鸡油菌类',
+    'truffle': '松露类',
+    'otherWild': '其他野生菌',
+    'shiitakeBag': '香菇菌包',
+    'oysterBag': '平菇菌包',
+    'enokiBag': '金针菇菌包',
+    'woodEarBag': '木耳菌包',
+    'kingOysterBag': '杏鲍菇菌包',
+    'funBag': '趣味菌包',
+    'shiitakeSpawn': '香菇菌种',
+    'oysterSpawn': '平菇菌种',
+    'enokiSpawn': '金针菇菌种',
+    'woodEarSpawn': '木耳菌种',
+    'otherSpawn': '其他菌种',
+    'springBox': '春季盲盒',
+    'summerBox': '夏季盲盒',
+    'autumnBox': '秋季盲盒',
+    'winterBox': '冬季盲盒',
+    'custom': '定制商品',
+    'processed': '加工食品',
+    'misc': '其他',
+    'xianggu': '香菇',
+    'jinzhen': '金针菇',
+    'xingbao': '杏鲍菇',
+    'xiewei': '蟹味菇',
+    'niugan': '牛肝菌',
+    'songrong': '松茸',
+    'zhusun': '竹荪',
+    'yangdu': '羊肚菌',
+    'driedXianggu': '香菇',
+    'driedSongrong': '松茸',
+    'driedZhusun': '竹荪',
+    'driedYangdu': '羊肚菌'
+  },
+  level3: {
+    'xianggu-premium': '特级',
+    'xianggu-organic': '有机',
+    'jinzhen-organic': '有机',
+    'jinzhen-fresh': '新鲜',
+    'xingbao-fresh': '新鲜',
+    'xingbao-dried': '干货',
+    'xiewei-fresh': '新鲜',
+    'niugan-black': '黑牛肝',
+    'niugan-yellow': '黄牛肝',
+    'songrong-wild': '野生',
+    'songrong-fresh': '新鲜',
+    'zhusun-premium': '精选',
+    'zhusun-dried': '干货',
+    'yangdu-premium': '精选',
+    'yangdu-wild': '野生',
+    'driedXianggu-premium': '特级',
+    'driedSongrong-wild': '野生',
+    'driedZhusun-premium': '精选',
+    'driedYangdu-premium': '精选',
+    '干香菇': '干香菇',
+    '鲜香菇': '鲜香菇',
+    '花菇': '花菇',
+    '香菇片': '香菇片',
+    '香菇酱': '香菇酱',
+    '平菇': '平菇',
+    '秀珍菇': '秀珍菇',
+    '白平菇': '白平菇',
+    '灰平菇': '灰平菇',
+    '平菇干货': '平菇干货',
+    '金针菇': '金针菇',
+    '黄金针菇': '黄金针菇',
+    '白金针菇': '白金针菇',
+    '金针菇干货': '金针菇干货',
+    '黑木耳': '黑木耳',
+    '白木耳': '白木耳',
+    '毛木耳': '毛木耳',
+    '小碗耳': '小碗耳',
+    '木耳干货': '木耳干货',
+    '杏鲍菇': '杏鲍菇',
+    '白灵菇': '白灵菇',
+    '杏鲍菇切片': '杏鲍菇切片',
+    '杏鲍菇干货': '杏鲍菇干货',
+    '蟹味菇': '蟹味菇',
+    '白玉菇': '白玉菇',
+    '海鲜菇': '海鲜菇',
+    '真姬菇': '真姬菇',
+    '竹荪': '竹荪',
+    '长裙竹荪': '长裙竹荪',
+    '短裙竹荪': '短裙竹荪',
+    '竹荪干货': '竹荪干货',
+    '菌菇拼盘': '菌菇拼盘',
+    '火锅菌菇组合': '火锅菌菇组合',
+    '煲汤菌菇包': '煲汤菌菇包',
+    '菌菇礼盒': '菌菇礼盒',
+    '赤灵芝': '赤灵芝',
+    '紫灵芝': '紫灵芝',
+    '灵芝切片': '灵芝切片',
+    '灵芝孢子粉': '灵芝孢子粉',
+    '灵芝茶': '灵芝茶',
+    '虫草花': '虫草花',
+    '虫草粉': '虫草粉',
+    '虫草胶囊': '虫草胶囊',
+    '鹿茸菇干货': '鹿茸菇干货',
+    '鹿茸菇粉': '鹿茸菇粉',
+    '茯苓块': '茯苓块',
+    '茯苓粉': '茯苓粉',
+    '茯苓皮': '茯苓皮',
+    '茯神': '茯神',
+    '猴头菇': '猴头菇',
+    '天麻': '天麻',
+    '铁皮石斛': '铁皮石斛',
+    '蛹虫草': '蛹虫草',
+    '新鲜松茸': '新鲜松茸',
+    '冻干松茸': '冻干松茸',
+    '松茸干片': '松茸干片',
+    '松茸酱': '松茸酱',
+    '黄牛肝菌': '黄牛肝菌',
+    '黑牛肝菌': '黑牛肝菌',
+    '白牛肝菌': '白牛肝菌',
+    '牛肝菌干货': '牛肝菌干货',
+    '新鲜羊肚菌': '新鲜羊肚菌',
+    '干羊肚菌': '干羊肚菌',
+    '羊肚菌粉': '羊肚菌粉',
+    '鸡油菌': '鸡油菌',
+    '鸡油菌干货': '鸡油菌干货',
+    '鸡油菌酱': '鸡油菌酱',
+    '黑松露': '黑松露',
+    '白松露': '白松露',
+    '松露酱': '松露酱',
+    '松露油': '松露油',
+    '虎掌菌': '虎掌菌',
+    '老人头菌': '老人头菌',
+    '鸡枞菌': '鸡枞菌',
+    '竹荪蛋': '竹荪蛋',
+    '花菇菌包': '花菇菌包',
+    '黑香菇菌包': '黑香菇菌包',
+    '秀珍菇菌包': '秀珍菇菌包',
+    '姬菇菌包': '姬菇菌包',
+    '黄金针菌包': '黄金针菌包',
+    '白木耳菌包': '白木耳菌包',
+    '白灵菇菌包': '白灵菇菌包',
+    '蘑菇乐园组合': '蘑菇乐园组合',
+    '儿童种植套装': '儿童种植套装',
+    'DIY种植礼盒': 'DIY种植礼盒',
+    '香菇母种': '香菇母种',
+    '香菇原种': '香菇原种',
+    '香菇栽培种': '香菇栽培种',
+    '平菇母种': '平菇母种',
+    '平菇原种': '平菇原种',
+    '平菇栽培种': '平菇栽培种',
+    '金针菇母种': '金针菇母种',
+    '金针菇原种': '金针菇原种',
+    '金针菇栽培种': '金针菇栽培种',
+    '黑木耳菌种': '黑木耳菌种',
+    '白木耳菌种': '白木耳菌种',
+    '杏鲍菇菌种': '杏鲍菇菌种',
+    '猴头菇菌种': '猴头菇菌种',
+    '灵芝菌种': '灵芝菌种',
+    '春季尝鲜盒': '春季尝鲜盒',
+    '春笋菌菇组合': '春笋菌菇组合',
+    '清明菌菇礼包': '清明菌菇礼包',
+    '夏季清凉菌菇盒': '夏季清凉菌菇盒',
+    '消暑菌菇组合': '消暑菌菇组合',
+    '秋季丰收盒': '秋季丰收盒',
+    '野生菌菇盲盒': '野生菌菇盲盒',
+    '中秋礼盒': '中秋礼盒',
+    '冬季滋补盒': '冬季滋补盒',
+    '暖冬菌菇礼包': '暖冬菌菇礼包',
+    '年货礼盒': '年货礼盒',
+    '企业定制礼盒': '企业定制礼盒',
+    '专属定制包装': '专属定制包装',
+    '菌菇零食': '菌菇零食',
+    '菌菇调味品': '菌菇调味品',
+    '菌菇罐头': '菌菇罐头',
+    '菌菇工艺品': '菌菇工艺品',
+    '菌菇相关周边': '菌菇相关周边'
+  }
+}
+
+// 根据分类key获取中文标签
+const getCategoryLabel = (key, level) => {
+  if (!key) return '-'
+  
+  let levelKey = ''
+  if (level === 1) levelKey = 'level1'
+  else if (level === 2) levelKey = 'level2'
+  else if (level === 3) levelKey = 'level3'
+  else return key
+  
+  // 首先尝试从分类树中查找
+  if (level === 1) {
+    const item = categoryTree.value.find(item => item.key === key)
+    if (item?.label) return item.label
+  } else if (level === 2) {
+    for (const level1 of categoryTree.value) {
+      const item = level1.children?.find(child => child.key === key)
+      if (item) return item.label
+    }
+  } else if (level === 3) {
+    for (const level1 of categoryTree.value) {
+      for (const level2 of level1.children || []) {
+        const item = level2.children?.find(child => child.key === key)
+        if (item) return item.label
+      }
+    }
+  }
+  
+  // 如果分类树中找不到，使用备用映射表
+  if (fallbackCategoryMap[levelKey] && fallbackCategoryMap[levelKey][key]) {
+    return fallbackCategoryMap[levelKey][key]
+  }
+  
+  // 如果都找不到，直接返回key（可能是已经是中文）
+  return key
+}
+
 // 获取商品列表
 const fetchProducts = async () => {
   loading.value = true
   try {
     // 根据用户角色选择接口
     let response
+    const params = {
+      page: currentPage.value,
+      limit: pageSize.value
+    }
+    
+    // 添加状态筛选条件（只有当状态有值时才传递）
+    if (filterForm.value.status) {
+      params.status = filterForm.value.status
+    }
+    
+    // 添加分类筛选条件
+    if (filterForm.value.level1) {
+      params.level1 = filterForm.value.level1
+    }
+    if (filterForm.value.level2) {
+      params.level2 = filterForm.value.level2
+    }
+    if (filterForm.value.level3) {
+      params.level3 = filterForm.value.level3
+    }
+    
     if (userStore.isAdmin) {
       // 管理员查看所有商品
-      response = await productStore.getProducts({
-        page: currentPage.value,
-        limit: pageSize.value,
-        category: filterForm.value.category,
-        status: filterForm.value.status
-      })
+      response = await productStore.getProducts(params)
     } else {
       // 卖家查看自己的商品
-      response = await productStore.getSellerProducts({
-        page: currentPage.value,
-        limit: pageSize.value,
-        category: filterForm.value.category,
-        status: filterForm.value.status
-      })
+      response = await productStore.getSellerProducts(params)
     }
     products.value = productStore.products
     total.value = productStore.total
@@ -873,9 +1247,13 @@ const fetchProducts = async () => {
 // 重置筛选
 const resetFilter = () => {
   filterForm.value = {
-    category: '',
+    level1: '',
+    level2: '',
+    level3: '',
     status: ''
   }
+  level2Options.value = []
+  level3Options.value = []
   currentPage.value = 1
   fetchProducts()
 }
@@ -1037,7 +1415,8 @@ const submitApprove = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadCategoryTree()
   fetchProducts()
 })
 </script>

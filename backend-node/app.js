@@ -92,6 +92,10 @@ const ContentReview = require('./models/ContentReview');
 // 导入操作日志模型
 const OperationLog = require('./models/OperationLog');
 
+// 导入商家商品层级权限相关模型
+const BusinessCategoryPermission = require('./models/BusinessCategoryPermission');
+const BusinessCategoryApplication = require('./models/BusinessCategoryApplication');
+
 
 // 初始化模型关联
 const models = {
@@ -128,7 +132,9 @@ const models = {
   UserTasteHistory,
   CookingVideo,
   ContentReview,
-  OperationLog
+  OperationLog,
+  BusinessCategoryPermission,
+  BusinessCategoryApplication
 };
 
 // 设置模型关联
@@ -302,8 +308,20 @@ app.use(compression({
   }
 }));
 
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://localhost:5174', 
+  'http://localhost:5175', 
+  'http://localhost:5176', 
+  'http://localhost:3001', 
+  'https://lala-smz.github.io',
+  process.env.FRONTEND_URL,
+  process.env.RENDER_EXTERNAL_URL,
+  process.env.RAILWAY_EXTERNAL_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:3001', 'https://lala-smz.github.io'],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true
@@ -416,6 +434,7 @@ const upload = multer({
 // 配置静态文件服务
 const uploadsStatic = express.static(path.join(__dirname, 'uploads'));
 const mushroomsStatic = express.static(path.join(__dirname, 'uploads', 'mushrooms'));
+const publicStatic = express.static(path.join(__dirname, 'public'));
 
 app.use('/uploads', (req, res, next) => {
   // 设置 CORS 头，允许前端访问图片
@@ -460,6 +479,8 @@ app.use('/mushrooms', (req, res, next) => {
   
   next();
 }, mushroomsStatic);
+
+app.use('/', publicStatic);
 
 // 配置全局速率限制
 const limiter = rateLimit({
@@ -781,6 +802,14 @@ app.use('/api/mushrooms', mushroomRoutes);
 // 注册分类和标签管理路由
 app.use('/api/categories', categoryRoutes);
 
+// 注册商家商品层级权限路由
+const businessCategoryRoutes = require('./routes/businessCategoryRoutes');
+app.use('/api/business-categories', businessCategoryRoutes);
+
+// 注册同步管理路由
+const syncRoutes = require('./routes/syncRoutes');
+app.use('/api/sync', syncRoutes);
+
 // 错误处理中间件
 app.use((err, req, res, next) => {
   console.error('错误:', err);
@@ -790,11 +819,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404处理
+// 处理前端SPA路由 - 如果不是API请求，返回index.html
 app.use('*', (req, res) => {
+  // 如果是API请求，返回404
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      error: '接口不存在'
+    });
+  }
+  
+  // 前端路由，返回index.html
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  
   res.status(404).json({
     success: false,
-    error: '接口不存在'
+    error: '页面不存在'
   });
 });
 

@@ -31,7 +31,7 @@ export const useMushroomStore = defineStore('mushroom', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.get('/api/mushrooms')
+        const response = await api.get('/mushrooms')
         this.mushrooms = response.data?.data || response.data || []
       } catch (err) {
         this.error = err.message
@@ -48,7 +48,7 @@ export const useMushroomStore = defineStore('mushroom', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.get(`/api/mushrooms/${id}`)
+        const response = await api.get(`/mushrooms/${id}`)
         this.currentMushroom = response.data?.data || response.data || null
         return this.currentMushroom
       } catch (err) {
@@ -67,7 +67,7 @@ export const useMushroomStore = defineStore('mushroom', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.post('/api/mushrooms', mushroomData)
+        const response = await api.post('/mushrooms', mushroomData)
         this.mushrooms.push(response.data)
         return response.data
       } catch (err) {
@@ -92,7 +92,7 @@ export const useMushroomStore = defineStore('mushroom', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.put(`/api/mushrooms/${id}`, mushroomData)
+        const response = await api.put(`/api/mushrooms/${id}`, mushroomData)
         const index = this.mushrooms.findIndex(m => m.id === id)
         if (index !== -1) {
           this.mushrooms[index] = response.data
@@ -127,7 +127,7 @@ export const useMushroomStore = defineStore('mushroom', {
       this.loading = true
       this.error = null
       try {
-        await axios.delete(`/api/mushrooms/${id}`)
+        await api.delete(`/api/mushrooms/${id}`)
         this.mushrooms = this.mushrooms.filter(m => m.id !== id)
         if (this.currentMushroom && this.currentMushroom.id === id) {
           this.currentMushroom = null

@@ -763,10 +763,11 @@ const handleSave = async () => {
  }
  }
  if (response && response.success) {
- ElMessage.success(isEdit.value ? '更新成功' : '创建成功');
- closeDialog();
- loadCategoryTree(true);
- }
+        ElMessage.success(isEdit.value ? '更新成功' : '创建成功');
+        localStorage.removeItem(CACHE_KEY);
+        closeDialog();
+        loadCategoryTree(true);
+      }
  else {
  const msg = response?.error || (isEdit.value ? '更新失败' : '创建失败');
  showError(msg, () => handleSave());

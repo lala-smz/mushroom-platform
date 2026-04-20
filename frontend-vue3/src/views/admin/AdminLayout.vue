@@ -106,6 +106,24 @@
           <span v-if="!isCollapse">商品上传</span>
         </el-menu-item>
         
+        <!-- 商品层级权限管理 - 商家可见 -->
+        <el-menu-item v-if="userStore.user?.role === 'seller'" index="/seller/category-permission">
+          <el-icon>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
+          </el-icon>
+          <span v-if="!isCollapse">商品层级权限</span>
+        </el-menu-item>
+        
         <!-- 订单管理 - 管理员和卖家都可见 -->
         <el-menu-item index="/admin/orders">
           <el-icon>
@@ -274,6 +292,23 @@
             </el-icon>
             <span v-if="!isCollapse">商品分类管理</span>
           </el-menu-item>
+          
+          <el-menu-item index="/admin/business-category-management">
+            <el-icon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 21h5v-5" /></svg>
+            </el-icon>
+            <span v-if="!isCollapse">商家层级管理</span>
+          </el-menu-item>
         </template>
       </el-menu>
     </el-aside>
@@ -408,14 +443,16 @@ const pageTitle = computed(() => {
     '/admin/recipes': '食谱管理',
     '/admin/boxes': '盲盒管理',
     '/admin/videos': '视频管理',
-    '/admin/product-categories': '商品分类管理'
+    '/admin/product-categories': '商品分类管理',
+    '/admin/business-category-management': '商家层级管理'
   };
   
   const sellerTitleMap = {
     '/admin/dashboard': '数据概览',
     '/admin/products': '商品管理',
     '/admin/product/upload': '商品上传',
-    '/admin/orders': '订单管理'
+    '/admin/orders': '订单管理',
+    '/seller/category-permission': '商品层级权限'
   };
   
   const titleMap = userStore.isAdmin ? adminTitleMap : sellerTitleMap;
@@ -424,8 +461,8 @@ const pageTitle = computed(() => {
 
 // 获取当前激活的菜单
 const activeMenu = computed(() => {
-  const adminMenuPaths = ['/admin/dashboard', '/admin/products', '/admin/product/upload', '/admin/users', '/admin/orders', '/admin/score-config', '/admin/recipes', '/admin/boxes', '/admin/videos', '/admin/product-categories'];
-  const sellerMenuPaths = ['/admin/dashboard', '/admin/products', '/admin/product/upload', '/admin/orders'];
+  const adminMenuPaths = ['/admin/dashboard', '/admin/products', '/admin/product/upload', '/admin/users', '/admin/orders', '/admin/score-config', '/admin/recipes', '/admin/boxes', '/admin/videos', '/admin/product-categories', '/admin/business-category-management'];
+  const sellerMenuPaths = ['/admin/dashboard', '/admin/products', '/admin/product/upload', '/admin/orders', '/seller/category-permission'];
   
   const menuPaths = userStore.isAdmin ? adminMenuPaths : sellerMenuPaths;
   

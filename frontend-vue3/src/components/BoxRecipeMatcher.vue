@@ -257,7 +257,7 @@ import { useMushroomBoxStore } from '../stores/useMushroomBoxStore'
 import { useRecipeStore } from '../stores/useRecipeStore'
 import { ElMessage, ElNotification } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
-import { getPlaceholderImage } from '../utils/imageUtils.js'
+import { getPlaceholderImage, BASE_URL } from '../utils/imageUtils.js'
 
 const props = defineProps({
   boxId: {
@@ -401,7 +401,7 @@ const fetchRecommendations = async () => {
         title: '香菇炒青菜制作教程',
         description: '简单易学的家常菜做法',
         duration: 360,
-        thumbnail: '/images/video-thumbnail-1.jpg',
+        thumbnail: BASE_URL + 'images/video-thumbnail-1.jpg',
         totalScore: 9.2,
         viewCount: 12345
       },
@@ -410,7 +410,7 @@ const fetchRecommendations = async () => {
         title: '平菇豆腐汤详细做法',
         description: '营养丰富的汤品制作方法',
         duration: 420,
-        thumbnail: '/images/video-thumbnail-2.jpg',
+        thumbnail: BASE_URL + 'images/video-thumbnail-2.jpg',
         totalScore: 8.8,
         viewCount: 8765
       }

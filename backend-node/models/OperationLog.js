@@ -9,7 +9,7 @@ const OperationLog = sequelize.define('OperationLog', {
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     comment: '操作用户ID'
   },
   username: {

@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Follow = require('../models/Follow');
 const Work = require('../models/Work');
 const Like = require('../models/Like');
+const ProductCategory = require('../models/ProductCategory');
+const BusinessCategoryPermission = require('../models/BusinessCategoryPermission');
 const jwtUtils = require('../utils/jwt');
 const { cache, cacheKeys } = require('../config/redis');
 
@@ -9,7 +11,7 @@ const userController = {
   // 用户注册
   register: async (req, res) => {
     try {
-      const { username, password, email, phone, role } = req.body;
+      const { username, password, email, phone, role, categories } = req.body;
 
       // 验证参数
       if (!username || !password) {
@@ -43,6 +45,21 @@ const userController = {
       const validRoles = ['user', 'seller'];
       const finalRole = validRoles.includes(role) ? role : 'user';
 
+      // 如果是卖家角色，验证分类参数
+      if (finalRole === 'seller' && categories && Array.isArray(categories)) {
+        for (const categoryKey of categories) {
+          const category = await ProductCategory.findOne({
+            where: { key: categoryKey, level: 1, status: 'active' }
+          });
+          if (!category) {
+            return res.status(400).json({
+              success: false,
+              error: `无效的一级分类: ${categoryKey}`
+            });
+          }
+        }
+      }
+
       // 创建新用户
       const user = await User.create({
         username,
@@ -51,6 +68,30 @@ const userController = {
         phone,
         role: finalRole
       });
+
+      // 如果是卖家角色且有选择分类，初始化商品层级权限
+      if (finalRole === 'seller' && categories && Array.isArray(categories) && categories.length > 0) {
+        const permissions = [];
+        for (const categoryKey of categories) {
+          const category = await ProductCategory.findOne({
+            where: { key: categoryKey, level: 1, status: 'active' }
+          });
+          if (category) {
+            permissions.push({
+              businessId: user.id,
+              categoryKey: category.key,
+              categoryLevel: category.level,
+              categoryLabel: category.label,
+              parentKey: category.parentKey,
+              grantedAt: new Date(),
+              grantedBy: null
+            });
+          }
+        }
+        if (permissions.length > 0) {
+          await BusinessCategoryPermission.bulkCreate(permissions);
+        }
+      }
 
       // 生成JWT令牌
       const token = jwtUtils.generateToken(user.id, user.role, user.username);

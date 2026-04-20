@@ -242,7 +242,6 @@
       </div>
     </div>
 
-    <!-- 配置详情对话框 -->
     <el-dialog
       v-model="showDetailsDialog"
       title="配置变更详情"
@@ -301,10 +300,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { apiClient } from '../api/index.js'
+import { apiClient } from '../../api/index.js'
 import * as echarts from 'echarts'
 
-// 响应式数据
 const scoreConfig = ref({
   ratingWeight: 0.3,
   interactionWeight: 0.25,
@@ -331,7 +329,6 @@ const currentUser = ref(null)
 const isAdmin = ref(false)
 const selectedTemplate = ref('')
 
-// 预设模板配置
 const templates = {
   balanced: {
     ratingWeight: 0.3,
@@ -363,49 +360,35 @@ const templates = {
   }
 }
 
-// 应用预设模板
 const applyTemplate = (templateValue) => {
   if (templateValue && templates[templateValue]) {
     scoreConfig.value = { ...templates[templateValue] }
     updateTotalWeight()
-    ElMessage.success(`已应用"${templateValue === 'balanced' ? '均衡评分' : templateValue === 'recency' ? '重视近期评分' : templateValue === 'quality' ? '重视作品质量' : '重视用户互动'}"模板`)
+    const templateNames = { balanced: '均衡评分', recency: '重视近期评分', quality: '重视作品质量', interaction: '重视用户互动' }
+    ElMessage.success(`已应用"${templateNames[templateValue]}"模板`)
   }
   selectedTemplate.value = ''
 }
 
-// 计算权重总和
 const updateTotalWeight = () => {
-  console.log('更新权重总和，当前配置:', scoreConfig.value)
   totalWeight.value = Object.values(scoreConfig.value).reduce((sum, weight) => {
-    // 确保每个权重值都是数字类型
     return sum + parseFloat(weight)
   }, 0)
   totalWeight.value = parseFloat(totalWeight.value.toFixed(2))
-  console.log('更新后的权重总和:', totalWeight.value)
   updatePreviewChart()
 }
 
-// 更新预览图表
 const updatePreviewChart = async () => {
-  console.log('更新预览图表')
   await nextTick()
   const chartDom = document.querySelector('.preview-chart')
-  if (!chartDom) {
-    console.log('预览图表DOM元素不存在')
-    return
-  }
+  if (!chartDom) return
   
-  // 销毁旧图表实例
   if (previewChart.value) {
     previewChart.value.dispose()
-    console.log('已销毁旧图表实例')
   }
   
-  // 创建新图表实例
   previewChart.value = echarts.init(chartDom)
-  console.log('已创建新图表实例')
   
-  // 准备数据
   const data = [
     { name: '作品评分', value: scoreConfig.value.ratingWeight * 100 },
     { name: '用户互动', value: scoreConfig.value.interactionWeight * 100 },
@@ -413,7 +396,6 @@ const updatePreviewChart = async () => {
     { name: '创新性', value: scoreConfig.value.creativityWeight * 100 },
     { name: '时效性', value: scoreConfig.value.recencyWeight * 100 }
   ]
-  console.log('图表数据:', data)
   
   const option = {
     tooltip: {
@@ -444,9 +426,7 @@ const updatePreviewChart = async () => {
   previewChart.value.setOption(option)
 }
 
-// 保存配置
 const saveConfig = async () => {
-  // 验证权重总和
   if (Math.abs(totalWeight.value - 1) > 0.01) {
     ElMessage.error('权重总和必须为1，请调整各项权重')
     return
@@ -454,21 +434,15 @@ const saveConfig = async () => {
   
   isSaving.value = true
   try {
-    console.log('保存配置:', scoreConfig.value)
     const response = await apiClient.work.updateScoreConfig({
       ...scoreConfig.value,
       changeReason: changeReason.value
     })
     
     ElMessage.success(response.message || '配置保存成功')
-    // 重新获取配置
     await fetchScoreConfig()
-    // 清空变更原因
     changeReason.value = ''
-    console.log('配置保存成功')
   } catch (error) {
-    console.error('保存配置失败:', error)
-    // 提供更具体的错误提示
     let errorMessage = '保存配置失败，请稍后重试'
     if (error.message.includes('权重总和必须为1')) {
       errorMessage = '权重总和必须为1，请调整各项权重'
@@ -485,30 +459,18 @@ const saveConfig = async () => {
   }
 }
 
-// 取消操作
 const cancelConfig = () => {
-  console.log('执行取消操作')
-  console.log('原始配置:', originalScoreConfig.value)
-  // 重置配置为原始值
   scoreConfig.value = { ...originalScoreConfig.value }
-  console.log('重置后的配置:', scoreConfig.value)
-  // 更新权重总和
   updateTotalWeight()
-  // 更新预览图表
   updatePreviewChart()
-  // 清空变更原因
   changeReason.value = ''
   ElMessage.success('已取消修改，恢复到原始配置')
-  console.log('取消操作完成')
 }
 
-// 获取评分配置
 const fetchScoreConfig = async () => {
   try {
     const response = await apiClient.work.getScoreConfig()
     if (response.success && response.data) {
-      console.log('获取到的配置:', response.data)
-      // 确保所有权重值都是数字类型
       const numericConfig = {
         ratingWeight: parseFloat(response.data.ratingWeight) || 0,
         interactionWeight: parseFloat(response.data.interactionWeight) || 0,
@@ -518,7 +480,6 @@ const fetchScoreConfig = async () => {
       }
       scoreConfig.value = numericConfig
       originalScoreConfig.value = { ...numericConfig }
-      console.log('原始配置已保存:', originalScoreConfig.value)
       updateTotalWeight()
     }
   } catch (error) {
@@ -527,9 +488,7 @@ const fetchScoreConfig = async () => {
   }
 }
 
-// 查看配置详情
 const showConfigDetails = (log) => {
-  // 转换旧配置数据
   oldConfigData.value = [
     { name: '作品评分', weight: log.oldConfig.ratingWeight, percentage: `${(log.oldConfig.ratingWeight * 100).toFixed(1)}%` },
     { name: '用户互动', weight: log.oldConfig.interactionWeight, percentage: `${(log.oldConfig.interactionWeight * 100).toFixed(1)}%` },
@@ -538,7 +497,6 @@ const showConfigDetails = (log) => {
     { name: '时效性', weight: log.oldConfig.recencyWeight, percentage: `${(log.oldConfig.recencyWeight * 100).toFixed(1)}%` }
   ]
   
-  // 转换新配置数据
   newConfigData.value = [
     { name: '作品评分', weight: log.newConfig.ratingWeight, percentage: `${(log.newConfig.ratingWeight * 100).toFixed(1)}%` },
     { name: '用户互动', weight: log.newConfig.interactionWeight, percentage: `${(log.newConfig.interactionWeight * 100).toFixed(1)}%` },
@@ -550,22 +508,17 @@ const showConfigDetails = (log) => {
   showDetailsDialog.value = true
 }
 
-// 获取用户信息
 const fetchUserInfo = async () => {
   try {
     const userInfo = localStorage.getItem('userInfo')
     if (userInfo) {
       currentUser.value = JSON.parse(userInfo)
       isAdmin.value = currentUser.value.role === 'admin'
-      console.log('用户信息:', currentUser.value)
-      console.log('是否为管理员:', isAdmin.value)
     } else {
-      // 如果本地存储没有用户信息，尝试从API获取
       const response = await apiClient.user.getInfo()
       currentUser.value = response.data
       isAdmin.value = currentUser.value.role === 'admin'
       localStorage.setItem('userInfo', JSON.stringify(currentUser.value))
-      console.log('从API获取用户信息:', currentUser.value)
     }
   } catch (error) {
     console.error('获取用户信息失败:', error)
@@ -573,14 +526,11 @@ const fetchUserInfo = async () => {
   }
 }
 
-// 获取配置变更日志
 const fetchConfigLogs = async () => {
   try {
-    console.log('获取配置变更日志')
     const response = await apiClient.work.getScoreConfigLogs()
     if (response.success && response.data) {
       configLogs.value = response.data
-      console.log('配置变更日志:', configLogs.value)
     }
   } catch (error) {
     console.error('获取配置变更日志失败:', error)
@@ -588,34 +538,24 @@ const fetchConfigLogs = async () => {
   }
 }
 
-// 处理窗口大小变化
 const handleResize = () => {
   if (previewChart.value) {
     previewChart.value.resize()
   }
 }
 
-// 组件挂载时
 onMounted(async () => {
-  // 获取用户信息
   await fetchUserInfo()
-  
-  // 获取评分配置
   await fetchScoreConfig()
-  
-  // 获取配置变更日志
   await fetchConfigLogs()
   
-  // 初始化预览图表
   setTimeout(() => {
     updatePreviewChart()
   }, 100)
   
-  // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
 })
 
-// 组件卸载时清理
 onUnmounted(() => {
   if (previewChart.value) {
     previewChart.value.dispose()

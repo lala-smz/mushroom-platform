@@ -1,25 +1,23 @@
 import axios from 'axios'
 
-// 创建axios实例
+const env = import.meta.env
+
 const api = axios.create({
-  baseURL: 'https://grateful-renewal-production-b1b1.up.railway.app/api',
-  timeout: 90000, // 增加超时时间到90秒
+  baseURL: env.VITE_API_URL ? `${env.VITE_API_URL}/api` : 'http://localhost:3303/api',
+  timeout: parseInt(env.VITE_API_TIMEOUT) || 60000,
   headers: {
     'Content-Type': 'application/json'
   },
-  retry: 3, // 重试次数
-  retryDelay: (retryCount) => Math.min(2000 * 2 ** retryCount, 20000), // 指数退避重试延迟，从2秒开始
-  // 请求状态管理
+  retry: parseInt(env.VITE_API_RETRY_COUNT) || 3,
+  retryDelay: (retryCount) => Math.min(2000 * 2 ** retryCount, 20000),
   requestState: {
     isRateLimited: false,
     rateLimitResetTime: 0
   }
 })
 
-// 请求拦截器
 api.interceptors.request.use(
   config => {
-    // 检查是否处于速率限制状态
     const now = Date.now()
     if (api.defaults.requestState.isRateLimited && now < api.defaults.requestState.rateLimitResetTime) {
       const waitTime = Math.ceil((api.defaults.requestState.rateLimitResetTime - now) / 1000)
@@ -27,17 +25,13 @@ api.interceptors.request.use(
       return Promise.reject(new Error(`请求过于频繁，请等待 ${waitTime} 秒后重试`))
     }
 
-    // 从本地存储获取token
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
     
-    // 添加请求ID
     config.requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    console.log(`[${config.requestId}] 发送请求: ${config.method.toUpperCase()} ${config.url}`)
     
-    // 如果是 boxes 相关的 POST 或 PUT 请求，记录完整的数据
     if (config.url && config.url.includes('/boxes') && 
         (config.method === 'post' || config.method === 'put') && 
         config.data) {
@@ -63,15 +57,12 @@ api.interceptors.request.use(
   }
 )
 
-// 响应拦截器
 api.interceptors.response.use(
   response => {
     const config = response.config
     console.log(`[${config.requestId}] 收到响应: ${config.method.toUpperCase()} ${config.url} - ${response.status}`)
     
-    // 统一处理响应数据
     if (response.data && typeof response.data === 'object') {
-      // 如果响应数据包含success字段，按照成功/失败处理
       if ('success' in response.data) {
         if (response.data.success) {
           return response.data
@@ -79,11 +70,9 @@ api.interceptors.response.use(
           return Promise.reject(new Error(response.data.error || '请求失败'))
         }
       } else {
-        // 如果响应数据不包含success字段，直接返回数据
         return response.data
       }
     } else {
-      // 如果响应数据不是对象，直接返回
       return response.data
     }
   },
@@ -93,7 +82,6 @@ api.interceptors.response.use(
     
     console.error(`[${requestId}] 请求失败:`, error)
     
-    // 统一处理错误
     let errorMessage = '请求失败，请稍后重试'
     
     if (error.response) {
@@ -106,12 +94,9 @@ api.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // 未授权，提示用户重新登录，但不立即跳转，避免数据丢失
           errorMessage = '登录已过期，请重新登录'
-          // 显示登录过期提示，让用户手动选择是否跳转
           const userConfirmed = window.confirm('登录已过期，请重新登录。点击确定跳转到登录页，点击取消可以继续保存当前数据（但可能失败）')
           if (userConfirmed) {
-            // 只有在用户确认后才清除localStorage并跳转到登录页
             try {
               localStorage.removeItem('token')
               localStorage.removeItem('userInfo')
@@ -122,9 +107,6 @@ api.interceptors.response.use(
             if (window.location.pathname !== '/login') {
               window.location.href = '/login'
             }
-          } else {
-            // 用户选择取消，保持当前状态，允许继续操作
-            console.warn('用户选择继续使用过期的登录状态')
           }
           break
         case 403:
@@ -147,9 +129,7 @@ api.interceptors.response.use(
           break
         case 429:
           errorMessage = '请求过于频繁，请稍后重试'
-          // 设置速率限制状态
           api.defaults.requestState.isRateLimited = true
-          // 设置重置时间为30秒后
           api.defaults.requestState.rateLimitResetTime = Date.now() + 30000
           console.warn(`[Rate Limit] 触发429错误，将在30秒后恢复请求`)
           break
@@ -164,7 +144,6 @@ api.interceptors.response.use(
       errorMessage = error.message
     }
     
-    // 显示错误提示（只有当没有设置 skipErrorDisplay 时才显示）
     if (window.ElMessage && !config?.skipErrorDisplay) {
       window.ElMessage.error({
         message: errorMessage,
@@ -173,14 +152,10 @@ api.interceptors.response.use(
       })
     }
     
-    // 实现重试逻辑
     if (config && config.retry > 0) {
-      // 对于429错误和网络错误进行重试
       if (!error.response || error.response.status === 429 || error.message.includes('Network Error')) {
         config.retry--
         const retryDelay = config.retryDelay(config.retry)
-        
-        // 对于429错误，增加额外的延迟
         const finalDelay = error.response?.status === 429 ? retryDelay * 2 : retryDelay
         
         console.log(`[${requestId}] 重试请求 (${config.retry + 1}/${config.retry + config.retry + 1})，延迟 ${finalDelay}ms`)
@@ -199,9 +174,7 @@ api.interceptors.response.use(
   }
 )
 
-// API接口定义
 export const apiClient = {
-  // 用户相关
   user: {
     register: (data) => api.post('/users/register', data),
     login: (data) => api.post('/users/login', data),
@@ -214,7 +187,6 @@ export const apiClient = {
     getUserById: (userId) => api.get(`/users/${userId}`)
   },
   
-  // 商品相关
   product: {
     getList: (params) => api.get('/products/list', { params }),
     getSellerProducts: (params) => api.get('/products/seller/list', { params }),
@@ -226,13 +198,12 @@ export const apiClient = {
     approve: (id, data) => api.put(`/products/approve/${id}`, data),
     setHot: (id, isHot) => api.put(`/products/set-hot/${id}`, { isHot }),
     getStats: () => api.get('/products/stats'),
-    // 分类相关
     getCategories: () => api.get('/products/categories'),
+    getCategoryTree: () => api.get('/products/categories/tree'),
     getLevel2Categories: (level1) => api.get('/products/categories/level2', { params: { level1 } }),
     getLevel3Categories: (level2) => api.get('/products/categories/level3', { params: { level2 } })
   },
   
-  // 购物车相关
   cart: {
     getList: () => api.get('/carts/list'),
     add: (data) => api.post('/carts/add', data),
@@ -242,23 +213,19 @@ export const apiClient = {
     updateStatus: (id, data) => api.put(`/carts/status/${id}`, data)
   },
   
-  // 订单相关
   order: {
     create: (data) => api.post('/order/create', data),
     getList: (params) => api.get('/order/list', { params }),
     getDetail: (id) => api.get(`/order/detail/${id}`),
     updateStatus: (id, data) => api.put(`/order/update/${id}`, data),
     cancel: (id) => api.put(`/order/cancel/${id}`),
-    // 支付相关
     queryPayStatus: (id) => api.get(`/order/pay/status/${id}`),
     retryPay: (id) => api.post(`/order/pay/retry/${id}`),
     payNotify: (data) => api.post('/order/pay/notify', data),
-    // 新增支付接口
     payOrder: (id, paymentMethod) => api.post(`/order/pay/${id}`, { paymentMethod }),
     pollPayStatus: (id) => api.get(`/order/pay/poll/${id}`)
   },
   
-  // 地址相关
   address: {
     getList: () => api.get('/address/list'),
     add: (data) => api.post('/address/add', data),
@@ -267,7 +234,6 @@ export const apiClient = {
     setDefault: (id) => api.put(`/address/setDefault/${id}`)
   },
   
-  // 消息相关
   message: {
     getConversations: () => api.get('/messages/conversations'),
     getConversationDetail: (id) => api.get(`/messages/conversations/${id}`),
@@ -280,52 +246,66 @@ export const apiClient = {
     search: (keyword) => api.get('/messages/search', { params: { keyword } })
   },
   
-  // 管理员相关
-    admin: {
-      getUsers: (params) => api.get('/admin/users', { params }),
-      getProducts: (params) => api.get('/admin/products', { params }),
-      getOrders: (params) => api.get('/admin/orders', { params }),
-      getOrderDetail: (id) => api.get(`/admin/orders/${id}`),
-      updateOrderStatus: (id, data) => api.put(`/admin/orders/${id}/status`, data),
-      getStats: () => api.get('/admin/stats'),
-      updateUserStatus: (id, data) => api.put(`/admin/users/${id}/status`, data),
-      updateUserRole: (id, data) => api.put(`/admin/users/${id}/role`, data),
-      updateUserInfo: (id, data) => api.put(`/admin/users/${id}/info`, data),
-      deleteUser: (id) => api.delete(`/admin/users/${id}`)
-    },
-    
-    // 卖家相关
-    seller: {
-      getOrders: (params) => api.get('/order/seller/list', { params }),
-      getOrderDetail: (id) => api.get(`/order/detail/${id}`),
-      updateOrderStatus: (id, data) => api.put(`/order/seller/update/${id}`, data),
-      getStats: () => api.get('/order/seller/stats')
-    },
+  admin: {
+    getUsers: (params) => api.get('/admin/users', { params }),
+    getProducts: (params) => api.get('/admin/products', { params }),
+    getOrders: (params) => api.get('/admin/orders', { params }),
+    getOrderDetail: (id) => api.get(`/admin/orders/${id}`),
+    updateOrderStatus: (id, data) => api.put(`/admin/orders/${id}/status`, data),
+    getStats: () => api.get('/admin/stats'),
+    updateUserStatus: (id, data) => api.put(`/admin/users/${id}/status`, data),
+    updateUserRole: (id, data) => api.put(`/admin/users/${id}/role`, data),
+    updateUserInfo: (id, data) => api.put(`/admin/users/${id}/info`, data),
+    deleteUser: (id) => api.delete(`/admin/users/${id}`),
+    getBusinessPermissions: (params) => api.get('/business-categories/admin/permissions', { params }),
+    getBusinessApplications: (params) => api.get('/business-categories/admin/applications', { params }),
+    reviewBusinessApplication: (data) => api.post('/business-categories/admin/applications/review', data),
+    setBusinessPermission: (data) => api.post('/business-categories/admin/permissions/set', data),
+    batchSetBusinessPermissions: (data) => api.post('/business-categories/admin/permissions/batch', data),
+    getSellers: () => api.get('/admin/users/sellers'),
+    getAllBusinessPermissions: () => api.get('/business-categories/admin/permissions/all'),
+    getPendingApplications: () => api.get('/business-categories/admin/applications/pending'),
+    reviewApplication: (id, data) => api.put(`/business-categories/admin/applications/${id}/review`, data),
+    batchGrantPermissions: (data) => api.put('/business-categories/admin/permissions/batch', data),
+    updateBusinessPermissions: (data) => api.put('/business-categories/admin/permissions/update', data),
+    getBusinessList: () => api.get('/admin/users/sellers')
+  },
   
-  // 文件上传
+  seller: {
+    getOrders: (params) => api.get('/order/seller/list', { params }),
+    getOrderDetail: (id) => api.get(`/order/detail/${id}`),
+    updateOrderStatus: (id, data) => api.put(`/order/seller/update/${id}`, data),
+    getStats: () => api.get('/order/seller/stats'),
+    getPermissions: () => api.get('/business-categories/permissions'),
+    getApplications: () => api.get('/business-categories/applications'),
+    applyCategory: (data) => api.post('/business-categories/applications', data),
+    cancelApplication: (id) => api.delete(`/business-categories/applications/${id}`),
+    getAvailableCategories: () => api.get('/business-categories/public/available-categories'),
+    checkCategoryPermission: (categoryKey) => api.get('/business-categories/check-permission', { params: { categoryKey } }),
+    getPermissionKeys: () => api.get('/business-categories/permission-keys'),
+    applyCategories: (data) => api.post('/business-categories/applications/batch', data)
+  },
+  
   upload: (formData) => api.post('/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     },
-    timeout: 90000 // 上传文件超时时间90秒
+    timeout: 90000
   }),
   
-  // 作品相关
   work: {
     upload: (formData, config = {}) => api.post('/works/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       },
-      timeout: 90000, // 上传文件超时时间90秒
+      timeout: 90000,
       ...config
     }),
     update: (id, formData) => {
-      // 根据数据类型自动设置Content-Type
       const config = {
-        timeout: 90000 // 上传文件超时时间90秒
+        timeout: 90000
       }
       
-      // 如果是FormData对象，设置multipart/form-data
       if (formData instanceof FormData) {
         config.headers = {
           'Content-Type': 'multipart/form-data'
@@ -335,7 +315,6 @@ export const apiClient = {
       return api.put(`/works/${id}`, formData, config)
     },
     delete: (id, data) => {
-      // 优先使用查询参数，因为 DELETE 请求的 body 在某些服务器上可能不被支持
       return api.delete(`/works/${id}`, {
         params: data
       })
@@ -361,14 +340,12 @@ export const apiClient = {
     addComment: (data) => api.post('/works/comment', data),
     deleteComment: (id, data) => api.delete(`/works/comment/${id}`, { data }),
     getComments: (workId, params) => api.get(`/works/${workId}/comments`, { params }),
-    // 添加评分
     addRating: (data) => api.post('/ratings', data),
     getWorkRatings: (workId) => api.get(`/ratings/work/${workId}`),
     updateRating: (id, data) => api.put(`/ratings/${id}`, data),
     deleteRating: (id, data) => api.delete(`/ratings/${id}`, { data })
   },
   
-  // 烹饪视频相关
   cookingVideo: {
     recommendByUser: (params) => api.get('/cooking-videos/recommend', { params }),
     getForRecipe: (recipeId, params) => api.get(`/cooking-videos/recipe/${recipeId}`, { params }),
@@ -378,23 +355,18 @@ export const apiClient = {
     incrementViews: (videoId) => api.post(`/cooking-videos/${videoId}/view`)
   },
   
-  // 内容管理相关（视频上传）
   contentManagement: {
-    // 上传烹饪视频
     uploadVideo: (formData) => api.post('/content-management/videos', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       },
-      timeout: 90000 // 上传文件超时时间90秒
+      timeout: 90000
     }),
-    // 删除烹饪视频
     deleteVideo: (id) => api.delete(`/content-management/videos/${id}`),
-    // 筛选烹饪视频
     filterVideos: (params) => api.get('/content-management/videos/filter', { params })
   }
 }
 
-// 创建取消令牌工厂
 const createCancelToken = () => {
   const source = axios.CancelToken.source()
   return {
@@ -403,7 +375,6 @@ const createCancelToken = () => {
   }
 }
 
-// 导出取消令牌工厂
 export { createCancelToken }
 
 export default api

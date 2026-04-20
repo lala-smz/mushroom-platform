@@ -93,6 +93,32 @@
             请选择您的身份，不同身份将拥有不同的功能权限
           </div>
         </el-form-item>
+        
+        <!-- 卖家注册时显示商品层级选择 -->
+        <el-form-item
+          v-if="form.role === 'seller'"
+          label="经营品类"
+          prop="categories"
+        >
+          <div class="category-section">
+            <div class="category-description">
+              请选择您计划经营的一级商品分类（可多选）
+            </div>
+            <el-tree-select
+              v-model="form.categories"
+              :data="categoryTree"
+              :props="treeProps"
+              multiple
+              check-strictly
+              placeholder="请选择商品分类"
+              class="category-select"
+            />
+            <div class="category-hint">
+              您只能上传已选择分类下的商品，后续可在商家后台申请更多品类
+            </div>
+          </div>
+        </el-form-item>
+        
         <el-form-item
           prop="agreement"
           class="agreement-form-item"
@@ -120,7 +146,7 @@
           <el-button 
             type="primary" 
             size="large" 
-            :loading="userStore.loading" 
+            :loading="loading" 
             style="width: 100%"
             :disabled="!form.agreement"
             @click="handleRegister"
@@ -263,10 +289,12 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/useUserStore'
+import { apiClient } from '../api'
 
 const router = useRouter()
 const userStore = useUserStore()
 const formRef = ref()
+const loading = ref(false)
 
 const form = reactive({
   username: '',
@@ -274,9 +302,17 @@ const form = reactive({
   confirmPassword: '',
   email: '',
   phone: '',
-  role: 'user', // 添加角色字段，默认值为'user'（客户）
-  agreement: false // 添加协议勾选字段
+  role: 'user',
+  categories: [],
+  agreement: false
 })
+
+const categoryTree = ref([])
+const treeProps = {
+  label: 'label',
+  value: 'key',
+  children: 'children'
+}
 
 const rules = {
   username: [
@@ -311,6 +347,18 @@ const rules = {
   role: [
     { required: true, message: '请选择您的身份', trigger: 'change' }
   ],
+  categories: [
+    {
+      validator: (rule, value, callback) => {
+        if (form.role === 'seller' && (!value || value.length === 0)) {
+          callback(new Error('请至少选择一个经营品类'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
+  ],
   agreement: [
     {
       validator: (rule, value, callback) => {
@@ -325,31 +373,42 @@ const rules = {
   ]
 }
 
+const loadCategoryTree = async () => {
+  try {
+    const response = await apiClient.product.getCategoryTree()
+    if (response.success) {
+      categoryTree.value = response.data.filter(cat => cat.level === 1)
+    }
+  } catch (error) {
+    console.error('获取分类树失败:', error)
+  }
+}
+
 const handleRegister = async () => {
-  // 验证表单
   if (!formRef.value) return
   
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
   
-  // 检查是否勾选协议
   if (!form.agreement) {
     ElMessage.warning('请先勾选同意相关协议')
     return
   }
 
+  loading.value = true
+  
   try {
     const result = await userStore.register({
       username: form.username,
       password: form.password,
       email: form.email,
       phone: form.phone,
-      role: form.role
+      role: form.role,
+      categories: form.role === 'seller' ? form.categories : []
     })
     
     if (result.success) {
       ElMessage.success('注册成功，请登录')
-      // 跳转到登录页
       router.push('/login')
     } else {
       ElMessage.error(result.error || '注册失败')
@@ -357,15 +416,15 @@ const handleRegister = async () => {
   } catch (error) {
     console.error('注册错误：', error)
     ElMessage.error(error.message || '注册失败')
+  } finally {
+    loading.value = false
   }
 }
 
-// 协议对话框相关变量
 const agreementDialogVisible = ref(false)
 const currentAgreementType = ref('user')
 const currentAgreementTitle = ref('蘑菇网客户注册协议')
 
-// 显示协议对话框
 const showAgreement = (type) => {
   currentAgreementType.value = type
   currentAgreementTitle.value = type === 'user' ? '蘑菇网客户注册协议' : '蘑菇网卖家注册协议'
@@ -373,10 +432,10 @@ const showAgreement = (type) => {
 }
 
 onMounted(() => {
-  // 检查是否已登录
   if (userStore.isLoggedIn) {
     router.push('/')
   }
+  loadCategoryTree()
 })
 </script>
 
@@ -480,6 +539,27 @@ onMounted(() => {
   margin: 0 4px;
   color: #606266;
   font-size: 14px;
+}
+
+/* 品类选择样式 */
+.category-section {
+  width: 100%;
+}
+
+.category-description {
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 10px;
+}
+
+.category-select {
+  width: 100%;
+}
+
+.category-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 10px;
 }
 
 /* 协议对话框样式 */

@@ -119,9 +119,10 @@ export const useProductStore = defineStore('product', {
         return null
       }
       
-      // 检查缓存（使用与后端一致的缓存键格式）
-      const cacheKey = `product:list:${params.category || ''}:${params.page || 1}:${params.limit || 10}`
-      if (cache.isCached(cacheKey) && !params.category && !params.status) {
+      // 检查缓存（仅在没有任何筛选条件时使用缓存）
+      const useCache = !params.category && !params.status && !params.level1 && !params.level2 && !params.level3
+      const cacheKey = `product:list:${params.category || ''}:${params.level1 || ''}:${params.level2 || ''}:${params.level3 || ''}:${params.page || 1}:${params.limit || 10}`
+      if (useCache && cache.isCached(cacheKey)) {
         const cachedData = cache.get(cacheKey)
         this.products = cachedData.products
         this.total = cachedData.total
@@ -134,12 +135,20 @@ export const useProductStore = defineStore('product', {
       this.error = null
       
       try {
-        const response = await apiClient.product.getList({
+        console.log('[getProducts] 发送请求参数:', params)
+        const requestParams = {
           page: params.page || this.page,
-          limit: params.limit || this.limit,
-          category: params.category || '',
-          status: params.status || ''
-        })
+          limit: params.limit || this.limit
+        }
+        
+        if (params.category) requestParams.category = params.category
+        if (params.status) requestParams.status = params.status
+        if (params.level1) requestParams.level1 = params.level1
+        if (params.level2) requestParams.level2 = params.level2
+        if (params.level3) requestParams.level3 = params.level3
+        
+        console.log('[getProducts] 实际发送的参数:', requestParams)
+        const response = await apiClient.product.getList(requestParams)
         
         console.log('getProducts response:', response)
         
@@ -184,7 +193,10 @@ export const useProductStore = defineStore('product', {
         page: params.page || this.page,
         limit: params.limit || this.limit,
         category: params.category || '',
-        status: params.status || ''
+        status: params.status || '',
+        level1: params.level1 || '',
+        level2: params.level2 || '',
+        level3: params.level3 || ''
       })
       
       console.log('getSellerProducts response:', response)

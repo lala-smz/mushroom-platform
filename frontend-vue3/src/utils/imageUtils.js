@@ -1,6 +1,6 @@
 import { uploadConfig } from '../config/upload.js'
 
-const BASE_URL = '/mushroom-platform/'
+export const BASE_URL = '/mushroom-platform/'
 
 export function getImageUrl(imagePath) {
   if (!imagePath) {

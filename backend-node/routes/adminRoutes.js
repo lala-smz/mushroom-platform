@@ -309,6 +309,27 @@ adminRoutes.get('/orders/:id', authMiddleware, roleMiddleware(['admin']), async 
   }
 });
 
+// 获取卖家列表
+adminRoutes.get('/users/sellers', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+  try {
+    const sellers = await User.findAll({
+      where: { role: 'seller', status: true },
+      attributes: ['id', 'username', 'phone', 'email', 'createdAt']
+    });
+
+    res.status(200).json({
+      success: true,
+      data: sellers
+    });
+  } catch (error) {
+    console.error('获取卖家列表失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取卖家列表失败'
+    });
+  }
+});
+
 // 管理员获取统计数据
 adminRoutes.get('/stats', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
   try {

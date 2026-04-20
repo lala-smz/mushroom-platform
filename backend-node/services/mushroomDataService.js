@@ -1,14 +1,11 @@
 const Mushroom = require('../models/Mushroom');
+const SyncLog = require('../models/SyncLog');
 const axios = require('axios');
-const { sequelize } = require('../config/db');
+const { sequelize, Op } = require('../config/db');
 const logger = require('../utils/logger');
 
-/**
- * 蘑菇数据服务类，用于从权威数据库获取蘑菇信息并更新到本地数据库
- */
 class MushroomDataService {
   constructor() {
-    // 权威数据库配置
     this.officialApiConfig = {
       baseUrl: 'https://api.example-mushroom-db.com/v1',
       apiKey: process.env.MUSHROOM_DB_API_KEY || 'your-api-key',
@@ -16,7 +13,6 @@ class MushroomDataService {
       timeout: 30000
     };
     
-    // 季节映射配置
     this.seasonMapping = {
       'spring': '春季',
       'summer': '夏季',
@@ -25,6 +21,21 @@ class MushroomDataService {
     };
     
     this.isRunning = false;
+    this.syncTimer = null;
+    
+    this.defaultConfig = {
+      autoSync: true,
+      syncInterval: 86400000,
+      syncOnStartup: true,
+      enableSeasonFilter: false,
+      maxRetries: 3,
+      retryDelay: 5000,
+      batchSize: 100,
+      cleanOldData: false,
+      syncHistoryRetentionDays: 30
+    };
+    
+    this.currentConfig = { ...this.defaultConfig };
   }
 
   getCurrentSeason() {
@@ -63,16 +74,8 @@ class MushroomDataService {
           fat: 0.3,
           carbohydrates: 5.2,
           fiber: 3.3,
-          vitamins: {
-            vitaminD: 0.2,
-            vitaminB2: 0.1,
-            vitaminC: 0
-          },
-          minerals: {
-            potassium: 455,
-            phosphorus: 86,
-            iron: 0.8
-          }
+          vitamins: { vitaminD: 0.2, vitaminB2: 0.1, vitaminC: 0 },
+          minerals: { potassium: 455, phosphorus: 86, iron: 0.8 }
         },
         safetyInfo: '香菇是安全可食用的食用菌，但过敏体质者可能会出现过敏反应。',
         cookingMethods: '炒、炖、煮、蒸、烤等',
@@ -81,7 +84,8 @@ class MushroomDataService {
         cultivationDifficulty: 'medium',
         category: '食用菇',
         dataSource: '中国食用菌协会',
-        image: '/mushrooms/xianggu.jpg'
+        image: '/mushrooms/xianggu.jpg',
+        type: 'common'
       },
       {
         name: '平菇',
@@ -95,16 +99,8 @@ class MushroomDataService {
           fat: 0.4,
           carbohydrates: 6.1,
           fiber: 2.3,
-          vitamins: {
-            vitaminB1: 0.1,
-            vitaminB2: 0.3,
-            vitaminC: 2
-          },
-          minerals: {
-            potassium: 370,
-            phosphorus: 80,
-            iron: 0.9
-          }
+          vitamins: { vitaminB1: 0.1, vitaminB2: 0.3, vitaminC: 2 },
+          minerals: { potassium: 370, phosphorus: 80, iron: 0.9 }
         },
         safetyInfo: '平菇是安全可食用的食用菌，无毒性报告。',
         cookingMethods: '炒、炖、煮、蒸等',
@@ -113,7 +109,8 @@ class MushroomDataService {
         cultivationDifficulty: 'easy',
         category: '食用菇',
         dataSource: '中国食用菌协会',
-        image: '/mushrooms/pinggu.jpg'
+        image: '/mushrooms/pinggu.jpg',
+        type: 'common'
       },
       {
         name: '杏鲍菇',
@@ -127,16 +124,8 @@ class MushroomDataService {
           fat: 0.1,
           carbohydrates: 7.3,
           fiber: 1.7,
-          vitamins: {
-            vitaminB1: 0.05,
-            vitaminB2: 0.11,
-            vitaminC: 0
-          },
-          minerals: {
-            potassium: 240,
-            phosphorus: 46,
-            iron: 0.5
-          }
+          vitamins: { vitaminB1: 0.05, vitaminB2: 0.11, vitaminC: 0 },
+          minerals: { potassium: 240, phosphorus: 46, iron: 0.5 }
         },
         safetyInfo: '杏鲍菇是安全可食用的食用菌，无毒性报告。',
         cookingMethods: '炒、煎、烤、炖等',
@@ -145,7 +134,8 @@ class MushroomDataService {
         cultivationDifficulty: 'medium',
         category: '食用菇',
         dataSource: '中国食用菌协会',
-        image: '/mushrooms/xingbao.jpg'
+        image: '/mushrooms/xingbao.jpg',
+        type: 'common'
       },
       {
         name: '金针菇',
@@ -159,16 +149,8 @@ class MushroomDataService {
           fat: 0.4,
           carbohydrates: 6.0,
           fiber: 2.4,
-          vitamins: {
-            vitaminB1: 0.1,
-            vitaminB2: 0.3,
-            vitaminC: 2
-          },
-          minerals: {
-            potassium: 195,
-            phosphorus: 42,
-            iron: 1.4
-          }
+          vitamins: { vitaminB1: 0.1, vitaminB2: 0.3, vitaminC: 2 },
+          minerals: { potassium: 195, phosphorus: 42, iron: 1.4 }
         },
         safetyInfo: '金针菇是安全可食用的食用菌，但未煮熟的金针菇可能会引起肠胃不适，应彻底煮熟后食用。',
         cookingMethods: '炒、煮、涮、烤等',
@@ -177,7 +159,8 @@ class MushroomDataService {
         cultivationDifficulty: 'medium',
         category: '食用菇',
         dataSource: '中国食用菌协会',
-        image: '/mushrooms/jinzhen.jpg'
+        image: '/mushrooms/jinzhen.jpg',
+        type: 'common'
       },
       {
         name: '猴头菇',
@@ -191,16 +174,8 @@ class MushroomDataService {
           fat: 0.2,
           carbohydrates: 7.3,
           fiber: 4.2,
-          vitamins: {
-            vitaminB1: 0.1,
-            vitaminB2: 0.1,
-            vitaminC: 4
-          },
-          minerals: {
-            potassium: 530,
-            phosphorus: 85,
-            iron: 1.1
-          }
+          vitamins: { vitaminB1: 0.1, vitaminB2: 0.1, vitaminC: 4 },
+          minerals: { potassium: 530, phosphorus: 85, iron: 1.1 }
         },
         safetyInfo: '猴头菇是安全可食用的食用菌，具有较高的营养价值和药用价值。',
         cookingMethods: '炖、煮、蒸、炒等',
@@ -209,7 +184,8 @@ class MushroomDataService {
         cultivationDifficulty: 'hard',
         category: '食用菇',
         dataSource: '中国食用菌协会',
-        image: '/mushrooms/houtou.jpg'
+        image: '/mushrooms/houtou.jpg',
+        type: 'common'
       }
     ];
 
@@ -228,31 +204,239 @@ class MushroomDataService {
       
       let updatedCount = 0;
       let createdCount = 0;
+      let failedCount = 0;
       
       for (const mushroom of mushroomData) {
-        const existingMushroom = await Mushroom.findOne({
-          where: {
-            name: mushroom.name
+        try {
+          const existingMushroom = await Mushroom.findOne({
+            where: { name: mushroom.name }
+          });
+          
+          if (existingMushroom) {
+            await existingMushroom.update(mushroom);
+            updatedCount++;
+            logger.debug('MushroomData', `更新蘑菇: ${mushroom.name}`);
+          } else {
+            await Mushroom.create(mushroom);
+            createdCount++;
+            logger.debug('MushroomData', `创建蘑菇: ${mushroom.name}`);
           }
-        });
-        
-        if (existingMushroom) {
-          await existingMushroom.update(mushroom);
-          updatedCount++;
-          logger.debug('MushroomData', `更新蘑菇: ${mushroom.name}`);
-        } else {
-          await Mushroom.create(mushroom);
-          createdCount++;
-          logger.debug('MushroomData', `创建蘑菇: ${mushroom.name}`);
+        } catch (error) {
+          failedCount++;
+          logger.error('MushroomData', `更新蘑菇失败: ${mushroom.name}`, error);
         }
       }
       
-      logger.success('MushroomData', `蘑菇数据库更新完成`, { createdCount, updatedCount });
-      return { createdCount, updatedCount };
+      logger.success('MushroomData', `蘑菇数据库更新完成`, { createdCount, updatedCount, failedCount });
+      return { createdCount, updatedCount, failedCount, totalCount: mushroomData.length };
     } catch (error) {
       logger.error('MushroomData', '更新本地蘑菇数据库失败', error);
       throw error;
     }
+  }
+
+  async createSyncLog(syncType) {
+    const log = await SyncLog.create({
+      syncType,
+      status: 'running',
+      startAt: new Date(),
+      syncConfig: JSON.stringify(this.currentConfig)
+    });
+    return log;
+  }
+
+  async updateSyncLog(logId, result) {
+    const endAt = new Date();
+    const duration = endAt.getTime() - result.startAt.getTime();
+    
+    await SyncLog.update({
+      status: result.success ? 'success' : 'failed',
+      endAt,
+      duration,
+      totalCount: result.totalCount || 0,
+      createdCount: result.createdCount || 0,
+      updatedCount: result.updatedCount || 0,
+      failedCount: result.failedCount || 0,
+      errorMessage: result.errorMessage || null,
+      notes: result.notes || null
+    }, {
+      where: { id: logId }
+    });
+  }
+
+  async cleanOldLogs() {
+    const retentionDays = this.currentConfig.syncHistoryRetentionDays;
+    if (retentionDays <= 0) return;
+    
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    
+    await SyncLog.destroy({
+      where: {
+        createdAt: { [Op.lt]: cutoffDate }
+      }
+    });
+    
+    logger.info('MushroomData', `清理了 ${retentionDays} 天前的同步日志`);
+  }
+
+  async getSyncHistory(options = {}) {
+    const { 
+      syncType = null, 
+      status = null, 
+      page = 1, 
+      limit = 20,
+      startDate = null,
+      endDate = null 
+    } = options;
+    
+    const where = {};
+    
+    if (syncType) where.syncType = syncType;
+    if (status) where.status = status;
+    if (startDate) where.startAt = { [Op.gte]: startDate };
+    if (endDate) where.startAt = { ...where.startAt, [Op.lte]: endDate };
+    
+    const result = await SyncLog.findAndCountAll({
+      where,
+      order: [['startAt', 'DESC']],
+      limit,
+      offset: (page - 1) * limit
+    });
+    
+    return {
+      logs: result.rows,
+      total: result.count,
+      page,
+      limit
+    };
+  }
+
+  async getSyncStatistics(syncType = null) {
+    const where = syncType ? { syncType } : {};
+    
+    const stats = await SyncLog.findAll({
+      where,
+      attributes: [
+        'status',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+        [sequelize.fn('AVG', sequelize.col('duration')), 'avgDuration'],
+        [sequelize.fn('SUM', sequelize.col('totalCount')), 'totalRecords'],
+        [sequelize.fn('SUM', sequelize.col('createdCount')), 'totalCreated'],
+        [sequelize.fn('SUM', sequelize.col('updatedCount')), 'totalUpdated']
+      ],
+      group: ['status'],
+      raw: true
+    });
+    
+    const result = {};
+    let totalCount = 0;
+    
+    stats.forEach(stat => {
+      result[stat.status] = {
+        count: parseInt(stat.count),
+        avgDuration: parseFloat(stat.avgDuration) || 0,
+        totalRecords: parseInt(stat.totalRecords) || 0,
+        totalCreated: parseInt(stat.totalCreated) || 0,
+        totalUpdated: parseInt(stat.totalUpdated) || 0
+      };
+      totalCount += parseInt(stat.count);
+    });
+    
+    result.total = totalCount;
+    
+    const recentLogs = await SyncLog.findAll({
+      where,
+      order: [['startAt', 'DESC']],
+      limit: 5
+    });
+    
+    return { statistics: result, recentLogs };
+  }
+
+  async getLastSyncInfo(syncType = null) {
+    const where = syncType ? { syncType } : {};
+    
+    const lastLog = await SyncLog.findOne({
+      where,
+      order: [['startAt', 'DESC']]
+    });
+    
+    if (!lastLog) {
+      return null;
+    }
+    
+    return {
+      id: lastLog.id,
+      syncType: lastLog.syncType,
+      status: lastLog.status,
+      startAt: lastLog.startAt,
+      endAt: lastLog.endAt,
+      duration: lastLog.duration,
+      totalCount: lastLog.totalCount,
+      createdCount: lastLog.createdCount,
+      updatedCount: lastLog.updatedCount,
+      failedCount: lastLog.failedCount,
+      errorMessage: lastLog.errorMessage
+    };
+  }
+
+  async configureFromHistory(options = {}) {
+    const { 
+      autoAdjustInterval = false,
+      targetSuccessRate = 0.95,
+      minInterval = 3600000,
+      maxInterval = 604800000
+    } = options;
+    
+    const stats = await this.getSyncStatistics('mushroom_data');
+    const { success, failed } = stats.statistics;
+    
+    if (autoAdjustInterval && success) {
+      const successRate = success.count / (success.count + (failed?.count || 0));
+      
+      if (successRate < targetSuccessRate) {
+        this.currentConfig.syncInterval = Math.min(
+          this.currentConfig.syncInterval * 2,
+          maxInterval
+        );
+        logger.warn('MushroomData', `同步成功率低于目标(${successRate.toFixed(2)} < ${targetSuccessRate})，已调整同步间隔为 ${this.currentConfig.syncInterval}ms`);
+      } else if (successRate >= targetSuccessRate && success.avgDuration < 30000) {
+        this.currentConfig.syncInterval = Math.max(
+          this.currentConfig.syncInterval / 2,
+          minInterval
+        );
+        logger.info('MushroomData', `同步成功率达标且速度快，已调整同步间隔为 ${this.currentConfig.syncInterval}ms`);
+      }
+    }
+    
+    if (this.syncTimer) {
+      this.stopScheduledSync();
+      this.startScheduledSync(this.currentConfig.syncInterval);
+    }
+    
+    return {
+      success: true,
+      message: '已根据历史记录重新配置同步参数',
+      config: this.currentConfig,
+      statistics: stats
+    };
+  }
+
+  updateConfig(newConfig) {
+    this.currentConfig = { ...this.currentConfig, ...newConfig };
+    
+    if (this.syncTimer && newConfig.syncInterval !== undefined) {
+      this.stopScheduledSync();
+      this.startScheduledSync(this.currentConfig.syncInterval);
+    }
+    
+    logger.info('MushroomData', '同步配置已更新', this.currentConfig);
+    return { success: true, config: this.currentConfig };
+  }
+
+  getConfig() {
+    return { ...this.currentConfig };
   }
 
   async executeUpdate() {
@@ -261,29 +445,54 @@ class MushroomDataService {
       return { success: false, message: '更新任务已在运行中' };
     }
     
+    const syncLog = await this.createSyncLog('mushroom_data');
+    const startTime = new Date();
+    
     try {
       this.isRunning = true;
       logger.info('MushroomData', '开始执行蘑菇数据更新任务');
       
-      const currentSeason = this.getCurrentSeason();
-      logger.debug('MushroomData', `当前季节: ${currentSeason}`);
+      let mushroomData;
+      if (this.currentConfig.enableSeasonFilter) {
+        const currentSeason = this.getCurrentSeason();
+        logger.debug('MushroomData', `当前季节: ${currentSeason}，启用季节过滤`);
+        mushroomData = await this.fetchMushroomData(currentSeason);
+      } else {
+        mushroomData = await this.fetchMushroomData();
+      }
       
-      const mushroomData = await this.fetchMushroomData();
       const updateResult = await this.updateLocalDatabase(mushroomData);
+      
+      await this.updateSyncLog(syncLog.id, {
+        ...updateResult,
+        success: true,
+        startAt: startTime
+      });
+      
+      await this.cleanOldLogs();
       
       logger.success('MushroomData', '蘑菇数据更新任务执行完成');
       
       return {
         success: true,
         message: '蘑菇数据更新完成',
-        currentSeason,
+        syncLogId: syncLog.id,
         ...updateResult
       };
     } catch (error) {
       logger.error('MushroomData', '执行蘑菇数据更新任务失败', error);
+      
+      await this.updateSyncLog(syncLog.id, {
+        success: false,
+        startAt: startTime,
+        errorMessage: error.message,
+        notes: '同步任务异常终止'
+      });
+      
       return {
         success: false,
-        message: `更新失败: ${error.message}`
+        message: `更新失败: ${error.message}`,
+        syncLogId: syncLog.id
       };
     } finally {
       this.isRunning = false;
@@ -298,9 +507,9 @@ class MushroomDataService {
       const mushrooms = await Mushroom.findAll({
         where: {
           status: 'active',
-          [sequelize.Op.or]: [
+          [Op.or]: [
             { season: targetSeason },
-            { season: sequelize.where(sequelize.fn('CONCAT', ',', sequelize.col('season'), ','), sequelize.Op.like, `%,${targetSeason},%`) }
+            { season: sequelize.where(sequelize.fn('CONCAT', ',', sequelize.col('season'), ','), Op.like, `%,${targetSeason},%`) }
           ]
         },
         order: [['name', 'ASC']]
@@ -314,15 +523,20 @@ class MushroomDataService {
     }
   }
 
-  startScheduledSync(interval = 86400000) {
+  startScheduledSync(interval = null) {
     if (this.syncTimer) {
       logger.warn('MushroomData', '定时同步任务已在运行中');
       return;
     }
     
-    logger.info('MushroomData', `启动蘑菇数据定时同步任务，间隔: ${interval}ms`);
+    const syncInterval = interval || this.currentConfig.syncInterval;
+    this.currentConfig.syncInterval = syncInterval;
     
-    this.executeUpdate();
+    logger.info('MushroomData', `启动蘑菇数据定时同步任务，间隔: ${syncInterval}ms`);
+    
+    if (this.currentConfig.syncOnStartup) {
+      this.executeUpdate();
+    }
     
     this.syncTimer = setInterval(async () => {
       try {
@@ -330,7 +544,7 @@ class MushroomDataService {
       } catch (error) {
         logger.error('MushroomData', '定时同步任务执行失败', error);
       }
-    }, interval);
+    }, syncInterval);
   }
 
   stopScheduledSync() {
@@ -339,6 +553,18 @@ class MushroomDataService {
       this.syncTimer = null;
       logger.info('MushroomData', '蘑菇数据定时同步任务已停止');
     }
+  }
+
+  async resetToDefault() {
+    this.currentConfig = { ...this.defaultConfig };
+    
+    if (this.syncTimer) {
+      this.stopScheduledSync();
+      this.startScheduledSync(this.currentConfig.syncInterval);
+    }
+    
+    logger.info('MushroomData', '同步配置已重置为默认值');
+    return { success: true, config: this.currentConfig };
   }
 }
 

@@ -171,7 +171,7 @@ const routes = [
       {
         path: 'score-config',
         name: 'AdminScoreConfig',
-        component: () => import('../views/AdminScoreConfig.vue'),
+        component: () => import('../views/admin/AdminScoreConfig.vue'),
         meta: { title: '评分权重配置' }
       },
       {
@@ -209,6 +209,12 @@ const routes = [
         name: 'AdminProductCategories',
         component: () => import('../views/admin/ProductCategoryManagement.vue'),
         meta: { title: '商品分类管理' }
+      },
+      {
+        path: 'business-category-management',
+        name: 'AdminBusinessCategoryManagement',
+        component: () => import('../views/admin/BusinessCategoryManagement.vue'),
+        meta: { title: '商家商品层级管理' }
       }
     ]
   },
@@ -233,6 +239,12 @@ const routes = [
     name: 'SellerProducts',
     component: () => import('../views/SellerProducts.vue'),
     meta: { title: '我的商品管理', requiresAuth: true }
+  },
+  {
+    path: '/seller/category-permission',
+    name: 'SellerCategoryPermission',
+    component: () => import('../views/seller/CategoryPermission.vue'),
+    meta: { title: '商品层级权限', requiresAuth: true }
   },
   
   // 我的菌菇厨房 - UGC社区平台

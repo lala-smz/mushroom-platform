@@ -357,7 +357,7 @@ const fetchCultivationProgress = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get(`/api/boxes/cultivation/${orderId.value}`)
+    const response = await api.get(`/api/boxes/cultivation/${orderId.value}`)
     cultivationData.value = response.data.data
   } catch (err) {
     error.value = err.message

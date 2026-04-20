@@ -59,8 +59,23 @@ const productController = {
       // 构建查询条件
       const where = {};
       
-      // 处理多分类筛选
-      if (categories) {
+      // 处理三级分类筛选
+      const level1 = req.query.level1;
+      const level2 = req.query.level2;
+      const level3 = req.query.level3;
+      
+      if (level1) {
+        where.category = level1;
+      }
+      if (level2) {
+        where.subCategory = level2;
+      }
+      if (level3) {
+        where.subSubCategory = level3;
+      }
+      
+      // 处理多分类筛选（兼容旧版）
+      if (categories && !level1) {
         // 如果是数组，使用IN操作
         if (Array.isArray(categories)) {
           where.category = {
@@ -80,8 +95,8 @@ const productController = {
             where.category = categories;
           }
         }
-      } else if (category) {
-        // 兼容单个分类参数
+      } else if (category && !level1) {
+        // 兼容单个分类参数（当没有使用三级分类时）
         where.category = category;
       }
 
@@ -108,9 +123,9 @@ const productController = {
         }
       }
 
-      // 尝试从缓存获取 - 只缓存公开的已审核商品
+      // 尝试从缓存获取 - 只缓存公开的已审核商品（不包含三级分类筛选）
       let cachedData = null;
-      if (!req.user && !status) {
+      if (!req.user && !status && !level1 && !level2 && !level3) {
         const cacheKey = cacheKeys.productList(page, limit, category);
         cachedData = await cache.get(cacheKey);
         if (cachedData) {
@@ -176,7 +191,23 @@ const productController = {
         sellerId: req.user.id
       };
       
-      if (category) {
+      // 处理三级分类筛选
+      const level1 = req.query.level1;
+      const level2 = req.query.level2;
+      const level3 = req.query.level3;
+      
+      if (level1) {
+        where.category = level1;
+      }
+      if (level2) {
+        where.subCategory = level2;
+      }
+      if (level3) {
+        where.subSubCategory = level3;
+      }
+      
+      // 兼容旧版分类参数（当没有使用三级分类时）
+      if (category && !level1) {
         where.category = category;
       }
       

@@ -307,7 +307,7 @@ const categoryController = {
       const categories = await ProductCategory.findAll({
         where: { level: 1, status: 'active' },
         order: [['sortOrder', 'ASC'], ['label', 'ASC']],
-        attributes: ['key', 'label', 'description']
+        attributes: ['key', 'label', 'description', 'level']
       });
       
       res.status(200).json({
@@ -338,19 +338,20 @@ const categoryController = {
       const level2Categories = await ProductCategory.findAll({
         where: { parentKey: level1, level: 2, status: 'active' },
         order: [['sortOrder', 'ASC'], ['label', 'ASC']],
-        attributes: ['key', 'label', 'description']
+        attributes: ['key', 'label', 'description', 'level', 'parentKey']
       });
       
       if (level2Categories.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: '未找到该一级分类对应的二级分类'
+        return res.status(200).json({
+          success: true,
+          data: [],
+          level1Info: null
         });
       }
 
       const level1Info = await ProductCategory.findOne({
         where: { key: level1, level: 1 },
-        attributes: ['key', 'label', 'description']
+        attributes: ['key', 'label', 'description', 'level']
       });
 
       res.status(200).json({
@@ -382,12 +383,12 @@ const categoryController = {
       const level3Categories = await ProductCategory.findAll({
         where: { parentKey: level2, level: 3, status: 'active' },
         order: [['sortOrder', 'ASC'], ['label', 'ASC']],
-        attributes: ['key', 'label', 'description']
+        attributes: ['key', 'label', 'description', 'level', 'parentKey']
       });
       
       res.status(200).json({
         success: true,
-        data: level3Categories.map(cat => ({ key: cat.key, label: cat.label }))
+        data: level3Categories
       });
     } catch (error) {
       console.error('获取三级分类失败:', error);
@@ -649,6 +650,8 @@ const categoryController = {
         parentKey: null
       });
 
+      await clearCache('product_category_tree');
+
       res.status(201).json({
         success: true,
         data: category
@@ -836,6 +839,8 @@ deleteLevel1Category: async (req, res) => {
         parentKey: parent.key  // 使用父分类的key，而不是URL参数
       });
 
+      await clearCache('product_category_tree');
+
       res.status(201).json({
         success: true,
         data: category
@@ -1011,6 +1016,8 @@ deleteLevel2Category: async (req, res) => {
         level: 3,
         parentKey: parent.key  // 使用父分类的key，而不是URL参数
       });
+
+      await clearCache('product_category_tree');
 
       res.status(201).json({
         success: true,

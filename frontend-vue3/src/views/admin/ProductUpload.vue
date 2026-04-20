@@ -1,130 +1,120 @@
-﻿﻿<template>
+<template>
   <div class="product-upload-container">
-    <h2>{{ isEdit ? '编辑商品' : '上传商品' }}</h2>
+    <div class="page-header">
+      <h2>{{ isEdit ? '编辑商品' : '上传商品' }}</h2>
+      <el-badge v-if="!userStore.isAdmin" type="info" :value="`已授权 ${permissionKeys.size} 个分类`" />
+    </div>
     
-    <div
-      v-loading="productStore.loading"
-      class="upload-form"
-    >
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-width="120px"
-      >
+    <div v-loading="productStore.loading" class="upload-form">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
         <!-- 商品基本信息 -->
-        <el-form-item
-          label="商品名称"
-          prop="name"
-        >
-          <el-input
-            v-model="form.name"
-            placeholder="请输入商品名称"
-            size="large"
-          />
+        <el-form-item label="商品名称" prop="name">
+          <el-input v-model="form.name" placeholder="请输入商品名称" size="large" />
         </el-form-item>
         
-        <el-form-item
-          label="一级分类"
-          prop="category"
-        >
-          <el-select
-            v-model="form.category"
-            placeholder="请选择一级分类"
-            size="large"
-            @change="handleCategoryChange"
-          >
-            <el-option
-              v-for="category in level1Categories"
-              :key="category.key"
-              :value="category.key"
-              :label="category.label"
-            />
-          </el-select>
+        <!-- 分类选择区域 -->
+        <div class="category-section">
+          <div class="section-header">
+            <span class="section-title">商品分类</span>
+            <el-tooltip content="选择商品所属分类层级，您只能上传已授权分类下的商品" placement="top">
+              <el-button type="text" size="small" class="help-btn">
+                <el-icon :size="18"><HelpFilled /></el-icon>
+              </el-button>
+            </el-tooltip>
+          </div>
+          
+          <el-form-item label="一级分类" prop="category">
+            <el-select
+              v-model="form.category"
+              placeholder="请选择一级分类"
+              size="large"
+              @change="handleCategoryChange"
+              :disabled="isEdit && !userStore.isAdmin"
+            >
+              <el-option
+                v-for="category in level1Categories"
+                :key="category.key"
+                :value="category.key"
+                :label="getCategoryLabel(category)"
+              />
+            </el-select>
+            <div v-if="level1Categories.length > 0 && !userStore.isAdmin" class="permission-hint">
+              <el-tag type="info" size="small">您只能上传已授权分类下的商品</el-tag>
+              <el-button
+                type="text"
+                size="small"
+                @click="goToCategoryPermission"
+                class="permission-link"
+              >
+                查看/申请权限 →
+              </el-button>
+            </div>
+          </el-form-item>
+          
+          <el-form-item label="二级分类" prop="subCategory">
+            <el-select
+              v-model="form.subCategory"
+              placeholder="请选择二级分类"
+              size="large"
+              :disabled="!form.category"
+              @change="handleSubCategoryChange"
+            >
+              <template #empty>
+                <span v-if="!form.category">请先选择一级分类</span>
+                <span v-else-if="level2Categories.length === 0 && !userStore.isAdmin">
+                  您暂无该分类下的二级分类权限，请先申请权限
+                </span>
+                <span v-else>暂无二级分类数据</span>
+              </template>
+              <el-option
+                v-for="category in level2Categories"
+                :key="category.key"
+                :value="category.key"
+                :label="getCategoryLabel(category)"
+              />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="三级分类" prop="subSubCategory">
+            <el-select
+              v-model="form.subSubCategory"
+              placeholder="请选择三级分类（可选）"
+              size="large"
+              :disabled="!form.subCategory"
+            >
+              <template #empty>
+                <span v-if="!form.subCategory">请先选择二级分类</span>
+                <span v-else>暂无三级分类数据</span>
+              </template>
+              <el-option
+                v-for="category in level3Categories"
+                :key="category.key"
+                :value="category.key"
+                :label="getCategoryLabel(category)"
+              />
+            </el-select>
+          </el-form-item>
+        </div>
+        
+        <el-form-item label="商品价格" prop="price">
+          <el-input-number v-model="form.price" :min="0.01" :step="0.01" :precision="2" size="large" />
         </el-form-item>
         
-        <el-form-item
-          label="二级分类"
-          prop="subCategory"
-        >
-          <el-select
-            v-model="form.subCategory"
-            placeholder="请选择二级分类"
-            size="large"
-            :disabled="!form.category"
-            @change="handleSubCategoryChange"
-          >
-            <el-option
-              v-for="category in level2Categories"
-              :key="category.key"
-              :value="category.key"
-              :label="category.label"
-            />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item
-          label="三级分类"
-          prop="subSubCategory"
-        >
-          <el-select
-            v-model="form.subSubCategory"
-            placeholder="请选择三级分类（可选）"
-            size="large"
-            :disabled="!form.subCategory"
-          >
-            <el-option
-              v-for="category in level3Categories"
-              :key="category.key"
-              :value="category.key"
-              :label="category.label"
-            />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item
-          label="商品价格"
-          prop="price"
-        >
-          <el-input-number
-            v-model="form.price"
-            :min="0.01"
-            :step="0.01"
-            :precision="2"
-            size="large"
-          />
-        </el-form-item>
-        
-        <el-form-item
-          label="库存数量"
-          prop="stock"
-        >
-          <el-input-number
-            v-model="form.stock"
-            :min="0"
-            size="large"
-          />
+        <el-form-item label="库存数量" prop="stock">
+          <el-input-number v-model="form.stock" :min="0" size="large" />
         </el-form-item>
         
         <!-- 商品描述 -->
-        <el-form-item
-          label="商品描述"
-          prop="description"
-        >
-          <el-input
-            v-model="form.description"
-            type="textarea"
-            :rows="5"
-            placeholder="请输入商品描述"
-            size="large"
-          />
+        <el-form-item label="商品描述" prop="description">
+          <el-input v-model="form.description" type="textarea" :rows="5" placeholder="请输入商品描述" size="large" />
         </el-form-item>
         
         <!-- 商品图片 -->
-        <el-form-item
-          label="商品图片"
-          prop="images"
-        >
+        <el-form-item label="商品图片" prop="images">
+          <div class="upload-tip">
+            <el-icon :size="16"><PictureFilled /></el-icon>
+            <span>支持 JPG、PNG、WebP 格式，单张图片不超过 5MB，最多上传 5 张</span>
+          </div>
           <el-upload
             v-model:file-list="fileList"
             :action="uploadUrl"
@@ -145,401 +135,442 @@
                 @error="(e) => handleImageError(e, DEFAULT_PLACEHOLDER_URL)"
               >
               <span class="el-upload-list__item-actions">
-                <span
-                  class="el-upload-list__item-preview"
-                  @click.stop="handlePreview(file)"
-                >
-                  <el-icon><ZoomIn /></el-icon>
+                <span class="el-upload-list__item-preview" @click="handlePreview(file)">
+                  <el-icon :size="18"><ZoomIn /></el-icon>
                 </span>
-                <span
-                  class="el-upload-list__item-delete"
-                  @click.stop="handleRemove(file)"
-                >
-                  <el-icon><Delete /></el-icon>
+                <span class="el-upload-list__item-delete" @click="handleRemove(file)">
+                  <el-icon :size="18"><Delete /></el-icon>
                 </span>
               </span>
             </template>
             <template #trigger>
-              <el-button
-                type="primary"
-                size="small"
-              >
-                <el-icon><Plus /></el-icon>
-                上传图片
-              </el-button>
-            </template>
-            <template #tip>
-              <div class="el-upload__tip">
-                请上传不超过5张图片，支持JPG、PNG、WebP格式，单张图片大小不超过5MB
-              </div>
+              <el-icon :size="24" class="upload-icon"><Plus /></el-icon>
+              <div class="upload-text">上传图片</div>
             </template>
           </el-upload>
         </el-form-item>
         
-        <!-- 提交按钮 -->
-        <el-form-item>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="productStore.loading"
-            @click="submitForm"
-          >
+        <!-- 表单按钮 -->
+        <el-form-item class="form-actions">
+          <el-button type="primary" @click="submitForm" :loading="submitting">
             {{ isEdit ? '保存修改' : '上传商品' }}
           </el-button>
-          <el-button
-            size="large"
-            @click="resetForm"
-          >
-            重置
-          </el-button>
+          <el-button @click="goBack">取消</el-button>
         </el-form-item>
       </el-form>
     </div>
     
-    <!-- 图片预览对话框 -->
-    <el-dialog v-model="previewDialogVisible">
-      <img
-        :src="previewImageUrl"
-        class="preview-image"
-      >
+    <!-- 图片预览弹窗 -->
+    <el-dialog v-model="previewDialogVisible" title="图片预览" width="80%">
+      <img :src="previewImageUrl" class="preview-image" />
     </el-dialog>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElUpload, ElMessageBox } from 'element-plus'
-import { Plus, ZoomIn, Delete } from '@element-plus/icons-vue'
-import { useProductStore } from '../../stores/useProductStore'
-import { useUserStore } from '../../stores/useUserStore'
-import { message } from '../../utils/message'
-import { getImageUrl, handleImageError, DEFAULT_PLACEHOLDER_URL, getUploadUrl } from '../../utils/imageUtils'
-import { apiClient } from '../../api'
-
-const router = useRouter()
-const route = useRoute()
-const productStore = useProductStore()
-const formRef = ref()
-
-// 上传URL
-const uploadUrl = getUploadUrl()
-
-// 是否为编辑模式
-const isEdit = computed(() => !!route.query.id)
-
-// 商品表单
+<script setup>import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { HelpFilled, PictureFilled, ZoomIn, Delete, Plus } from '@element-plus/icons-vue';
+import { useProductStore } from '../../stores/useProductStore';
+import { useUserStore } from '../../stores/useUserStore';
+import { apiClient } from '../../api';
+const route = useRoute();
+const router = useRouter();
+const productStore = useProductStore();
+const userStore = useUserStore();
+const isEdit = computed(() => !!route.query.id);
 const form = ref({
-  name: '',
-  category: '',
-  subCategory: '',
-  subSubCategory: '',
-  price: 0,
-  stock: 0,
-  description: '',
-  images: []
-})
-
-// 文件列表
-const fileList = ref([])
-
-// 三级分类数据
-const level1Categories = ref([])
-const level2Categories = ref([])
-const level3Categories = ref([])
-
-// 加载一级分类
+ name: '',
+ category: '',
+ subCategory: '',
+ subSubCategory: '',
+ price: 0,
+ stock: 0,
+ description: '',
+ images: []
+});
+const fileList = ref([]);
+const formRef = ref(null);
+const submitting = ref(false);
+const level1Categories = ref([]);
+const level2Categories = ref([]);
+const level3Categories = ref([]);
+const allCategories = ref([]);
+const userPermissions = ref([]);
+const permissionKeys = ref(new Set());
+const previewDialogVisible = ref(false);
+const previewImageUrl = ref('');
+const uploadUrl = 'http://localhost:3303/api/upload';
+const DEFAULT_PLACEHOLDER_URL = 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=mushroom%20product%20placeholder%20image&image_size=square_hd';
 const loadLevel1Categories = async () => {
-  try {
-    const response = await apiClient.product.getCategories()
-    if (response.success && response.data) {
-      level1Categories.value = response.data
-    }
-  } catch (error) {
-    console.error('加载一级分类失败:', error)
-  }
-}
+ try {
+ const [categoriesRes, allCatRes] = await Promise.all([
+ apiClient.product.getCategories(),
+ apiClient.seller.getAvailableCategories()
+ ]);
 
-// 加载二级分类
+ if (allCatRes.success && allCatRes.data) {
+ allCategories.value = flattenCategories(allCatRes.data);
+ }
+
+ if (categoriesRes.success && categoriesRes.data) {
+ let categories = categoriesRes.data;
+ if (!userStore.isAdmin) {
+ await loadUserPermissions();
+ if (permissionKeys.value.size > 0 && allCategories.value.length > 0) {
+ const validLevel1Keys = new Set();
+ permissionKeys.value.forEach(key => {
+ const category = allCategories.value.find(c => c.key === key);
+ if (category) {
+ if (category.level === 1) {
+ validLevel1Keys.add(key);
+ } else if (category.parentKey) {
+ const parentCategory = allCategories.value.find(c => c.key === category.parentKey);
+ if (parentCategory && parentCategory.level === 1) {
+ validLevel1Keys.add(parentCategory.key);
+ }
+ }
+ }
+ });
+ if (validLevel1Keys.size > 0) {
+ categories = categories.filter(cat => validLevel1Keys.has(cat.key));
+ }
+ }
+ }
+ level1Categories.value = categories;
+ }
+ }
+ catch (error) {
+ console.error('加载一级分类失败:', error);
+ }
+};
+const flattenCategories = (categories) => {
+ if (!categories || !Array.isArray(categories)) {
+ return [];
+ }
+ const result = [];
+ const traverse = (node) => {
+ result.push({
+ key: node.key,
+ label: node.label,
+ level: node.level,
+ parentKey: node.parentKey
+ });
+ if (node.children && Array.isArray(node.children)) {
+ node.children.forEach(traverse);
+ }
+ };
+ categories.forEach(traverse);
+ return result;
+};
+const loadUserPermissions = async () => {
+ try {
+ const response = await apiClient.seller.getPermissionKeys();
+ if (response.success && response.data) {
+ userPermissions.value = response.data;
+ if (response.data.allKeys && Array.isArray(response.data.allKeys)) {
+ permissionKeys.value = new Set(response.data.allKeys);
+ } else if (response.data.keys && Array.isArray(response.data.keys)) {
+ permissionKeys.value = new Set(response.data.keys);
+ } else if (Array.isArray(response.data)) {
+ permissionKeys.value = new Set(response.data);
+ }
+ }
+ }
+ catch (error) {
+ console.error('加载用户权限失败:', error);
+ }
+};
+const getCategoryLabel = (category) => {
+ if (userStore.isAdmin) {
+ return category.label;
+ }
+ if (permissionKeys.value.has(category.key)) {
+ return category.label;
+ }
+ const hasChildPermission = allCategories.value.some(c => c.parentKey === category.key && permissionKeys.value.has(c.key));
+ if (hasChildPermission) {
+ return category.label;
+ }
+ return category.label + ' (无权限)';
+};
 const loadLevel2Categories = async (level1Key) => {
-  level2Categories.value = []
-  level3Categories.value = []
-  form.value.subCategory = ''
-  form.value.subSubCategory = ''
-  
-  if (!level1Key) return
-  
-  try {
-    const response = await apiClient.product.getLevel2Categories(level1Key)
-    if (response.success && response.data) {
-      level2Categories.value = response.data
-    }
-  } catch (error) {
-    console.error('加载二级分类失败:', error)
-  }
-}
-
-// 加载三级分类
+ level2Categories.value = [];
+ level3Categories.value = [];
+ form.value.subCategory = '';
+ form.value.subSubCategory = '';
+ if (!level1Key)
+ return;
+ try {
+ const response = await apiClient.product.getLevel2Categories(level1Key);
+ if (response.success && response.data) {
+ let categories = response.data;
+ if (!userStore.isAdmin) {
+ categories = categories.filter(cat => 
+ permissionKeys.value.has(cat.key) || 
+ allCategories.value.some(c => c.parentKey === cat.key && permissionKeys.value.has(c.key))
+ );
+ }
+ level2Categories.value = categories;
+ }
+ }
+ catch (error) {
+ console.error('加载二级分类失败:', error);
+ }
+};
 const loadLevel3Categories = async (level2Key) => {
-  level3Categories.value = []
-  form.value.subSubCategory = ''
-  
-  if (!level2Key) return
-  
-  try {
-    const response = await apiClient.product.getLevel3Categories(level2Key)
-    if (response.success && response.data) {
-      level3Categories.value = response.data
-    }
-  } catch (error) {
-    console.error('加载三级分类失败:', error)
-  }
-}
-
-// 一级分类变化处理
-const handleCategoryChange = (value) => {
-  loadLevel2Categories(value)
-}
-
-// 二级分类变化处理
-const handleSubCategoryChange = (value) => {
-  loadLevel3Categories(value)
-}
-
-// 图片预览
-const previewDialogVisible = ref(false)
-const previewImageUrl = ref('')
-
-// 表单验证规则
+ level3Categories.value = [];
+ form.value.subSubCategory = '';
+ if (!level2Key)
+ return;
+ try {
+ const response = await apiClient.product.getLevel3Categories(level2Key);
+ if (response.success && response.data) {
+ let categories = response.data;
+ if (!userStore.isAdmin) {
+ categories = categories.filter(cat => permissionKeys.value.has(cat.key));
+ }
+ level3Categories.value = categories;
+ }
+ }
+ catch (error) {
+ console.error('加载三级分类失败:', error);
+ }
+};
+const handleCategoryChange = async (value) => {
+ await loadLevel2Categories(value);
+};
+const handleSubCategoryChange = async (value) => {
+ await loadLevel3Categories(value);
+};
+const goToCategoryPermission = () => {
+ router.push('/seller/category-permission');
+};
+const goBack = () => {
+ router.back();
+};
 const rules = {
-  name: [
-    { required: true, message: '请输入商品名称', trigger: 'blur' },
-    { min: 2, max: 100, message: '商品名称长度在2-100个字符之间', trigger: 'blur' }
-  ],
-  category: [
-    { required: true, message: '请选择一级分类', trigger: 'change' }
-  ],
-  subCategory: [
-    { required: true, message: '请选择二级分类', trigger: 'change' }
-  ],
-  price: [
-    { required: true, message: '请输入商品价格', trigger: 'blur' },
-    { type: 'number', min: 0.01, message: '商品价格必须大于0', trigger: 'blur' }
-  ],
-  stock: [
-    { required: true, message: '请输入库存数量', trigger: 'blur' },
-    { type: 'number', min: 0, message: '库存数量必须大于等于0', trigger: 'blur' }
-  ],
-  description: [
-    { required: true, message: '请输入商品描述', trigger: 'blur' },
-    { min: 10, message: '商品描述至少10个字符', trigger: 'blur' }
-  ],
-  images: [
-    { required: true, message: '请上传至少一张商品图片', trigger: 'change' }
-  ]
-}
-
-// 监听文件列表变化
+ name: [
+ { required: true, message: '请输入商品名称', trigger: 'blur' },
+ { min: 2, max: 100, message: '商品名称长度在2-100个字符之间', trigger: 'blur' }
+ ],
+ category: [
+ { required: true, message: '请选择一级分类', trigger: 'change' }
+ ],
+ subCategory: [
+ { required: true, message: '请选择二级分类', trigger: 'change' }
+ ],
+ price: [
+ { required: true, message: '请输入商品价格', trigger: 'blur' },
+ { type: 'number', min: 0.01, message: '商品价格必须大于0', trigger: 'blur' }
+ ],
+ stock: [
+ { required: true, message: '请输入库存数量', trigger: 'blur' },
+ { type: 'number', min: 0, message: '库存数量必须大于等于0', trigger: 'blur' }
+ ],
+ description: [
+ { required: true, message: '请输入商品描述', trigger: 'blur' },
+ { min: 10, message: '商品描述至少10个字符', trigger: 'blur' }
+ ],
+ images: [
+ { required: true, message: '请上传至少一张商品图片', trigger: 'change' }
+ ]
+};
 watch(fileList, (newList) => {
-  form.value.images = newList.map(file => file?.url ?? '').filter(url => url)
-}, { deep: true })
-
-// 上传前验证
+ form.value.images = newList.map(file => file?.url ?? '').filter(url => url);
+}, { deep: true });
 const beforeUpload = (file) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
-  const isAllowed = allowedTypes.includes(file.type)
-  if (!isAllowed) {
-    message.error('只能上传JPG、PNG或WebP图片')
-    return false
-  }
-  const isLt5M = file.size / 1024 / 1024 < 5
-  if (!isLt5M) {
-    message.error('图片大小不能超过5MB')
-    return false
-  }
-  return true
-}
-
-// 上传成功处理
+ const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+ const isAllowed = allowedTypes.includes(file.type);
+ if (!isAllowed) {
+ ElMessage.error('只能上传JPG、PNG或WebP图片');
+ return false;
+ }
+ const isLt5M = file.size / 1024 / 1024 < 5;
+ if (!isLt5M) {
+ ElMessage.error('图片大小不能超过5MB');
+ return false;
+ }
+ return true;
+};
 const handleUploadSuccess = (response, file) => {
-  try {
-    if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
-      // 从响应中获取文件路径，优先使用path，其次使用url
-      const filePath = response.data[0].path || response.data[0].url
-      if (filePath) {
-        file.url = filePath
-        message.success('图片上传成功')
-      } else {
-        file.url = '' // 确保file.url存在，避免后续错误
-        message.error('图片上传失败：返回数据格式不正确')
-        console.error('上传成功但返回数据格式不正确:', response)
-      }
-    } else {
-      file.url = '' // 确保file.url存在，避免后续错误
-      message.error('图片上传失败：返回数据格式不正确')
-      console.error('上传成功但返回数据格式不正确:', response)
-    }
-  } catch (error) {
-    file.url = '' // 确保file.url存在，避免后续错误
-    message.error('图片上传失败：处理响应数据时出错')
-    console.error('处理上传成功响应时出错:', error)
-  }
-}
-
-// 上传失败处理
+ try {
+ if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
+ const filePath = response.data[0].path || response.data[0].url;
+ if (filePath) {
+ file.url = filePath;
+ ElMessage.success('图片上传成功');
+ }
+ else {
+ file.url = '';
+ ElMessage.error('图片上传失败：返回数据格式不正确');
+ }
+ }
+ else {
+ file.url = '';
+ ElMessage.error('图片上传失败：返回数据格式不正确');
+ }
+ }
+ catch (error) {
+ file.url = '';
+ ElMessage.error('图片上传失败：处理响应数据时出错');
+ }
+};
 const handleUploadError = (error, file) => {
-  file.url = '' // 确保file.url存在，避免后续错误
-  let errorMessage = '图片上传失败'
-  
-  // 从错误响应中提取更详细的错误信息
-  if (error && error.response) {
-    const { status, data } = error.response
-    if (data && data.error) {
-      errorMessage = data.error
-    } else if (status === 400) {
-      errorMessage = '请求参数错误，请检查上传配置'
-    } else if (status === 500) {
-      errorMessage = '服务器内部错误，请稍后重试'
-    } else if (status === 404) {
-      errorMessage = '上传接口不存在，请检查服务配置'
-    } else if (status === 413) {
-      errorMessage = '文件大小超过限制'
-    }
-  } else if (error && error.message) {
-    // 网络错误或其他错误
-    if (error.message.includes('ERR_CONNECTION_RESET')) {
-      errorMessage = '服务器连接重置，请检查服务器配置'
-    } else if (error.message.includes('Network Error')) {
-      errorMessage = '网络错误，请检查网络连接'
-    }
-  }
-  
-  message.error(errorMessage)
-  console.error('上传失败:', error)
-}
-
-// 文件超出限制处理
+ file.url = '';
+ let errorMessage = '图片上传失败';
+ if (error && error.response) {
+ const { status, data } = error.response;
+ if (data && data.error) {
+ errorMessage = data.error;
+ }
+ else if (status === 400) {
+ errorMessage = '请求参数错误';
+ }
+ else if (status === 500) {
+ errorMessage = '服务器内部错误';
+ }
+ else if (status === 413) {
+ errorMessage = '文件大小超过限制';
+ }
+ }
+ else if (error && error.message) {
+ if (error.message.includes('Network Error')) {
+ errorMessage = '网络错误';
+ }
+ }
+ ElMessage.error(errorMessage);
+};
 const handleExceed = () => {
-  message.error('最多只能上传5张图片')
-}
-
-// 图片预览
+ ElMessage.error('最多只能上传5张图片');
+};
 const handlePreview = (file) => {
-  if (file?.url) {
-    previewImageUrl.value = file.url
-    previewDialogVisible.value = true
-  }
-}
-
-// 移除图片
+ if (file?.url) {
+ previewImageUrl.value = file.url;
+ previewDialogVisible.value = true;
+ }
+};
 const handleRemove = () => {
-  // 更新图片列表
-  form.value.images = fileList.value.map(file => file?.url ?? '').filter(url => url)
-}
-
-// 提交表单
+ form.value.images = fileList.value.map(file => file?.url ?? '').filter(url => url);
+};
+const getImageUrl = (url) => {
+ if (!url)
+ return DEFAULT_PLACEHOLDER_URL;
+ return url.startsWith('http') ? url : `http://localhost:3303${url}`;
+};
+const handleImageError = (e, fallbackUrl) => {
+ e.target.src = fallbackUrl;
+};
 const submitForm = async () => {
-  if (!formRef.value) return
-  
-  const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
-
-  try {
-    if (isEdit.value) {
-      // 编辑商品
-      await productStore.updateProduct(route.query.id, form.value)
-      message.success('商品修改成功')
-      // 提供选项：返回商品列表或继续编辑
-      ElMessageBox.confirm('商品修改成功，是否前往商品管理页面？', '提示', {
-        confirmButtonText: '前往管理',
-        cancelButtonText: '继续编辑',
-        type: 'success'
-      }).then(() => {
-        router.push('/admin/products')
-      }).catch(() => {
-        // 继续编辑
-      })
-    } else {
-        // 上传新商品
-        await productStore.createProduct(form.value)
-        // 根据用户角色显示不同的提示信息
-        const userStore = useUserStore()
-        const isAdmin = userStore.isAdmin
-        const successMessage = isAdmin ? '商品上传成功，已自动通过审核' : '商品上传成功，等待审核'
-        const confirmMessage = isAdmin ? '商品上传成功，已自动通过审核。是否前往商品管理页面？' : '商品上传成功，等待审核。是否前往商品管理页面？'
-        
-        message.success(successMessage)
-        // 提供选项：返回商品列表或继续上传
-        ElMessageBox.confirm(confirmMessage, '提示', {
-          confirmButtonText: '前往管理',
-          cancelButtonText: '继续上传',
-          type: 'success'
-        }).then(() => {
-          router.push(isAdmin ? '/admin/products' : '/seller/products')
-        }).catch(() => {
-          // 继续上传
-          resetForm()
-        })
-      }
-  } catch (error) {
-    message.error(error.message || '操作失败')
-    console.error('提交表单失败:', error)
-  }
-}
-
-// 重置表单
-const resetForm = () => {
-  formRef.value.resetFields()
-  fileList.value = []
-  form.value.images = []
-}
-
-// 获取商品详情（编辑模式）
-const fetchProductDetail = async () => {
-  if (!isEdit.value) return
-  
-  try {
-    await productStore.getProductDetail(route.query.id)
-    const product = productStore.productDetail
-    if (product) {
-      form.value = {
-        name: product.name,
-        category: product.category,
-        subCategory: product.subCategory || '',
-        subSubCategory: product.subSubCategory || '',
-        price: product.price,
-        stock: product.stock,
-        description: product.description,
-        images: product.images || []
-      }
-      // 初始化文件列表
-      fileList.value = (Array.isArray(product.images) ? product.images : []).map((image, index) => ({
-        id: index,
-        url: getImageUrl(image || ''), // 确保url存在并使用getImageUrl处理
-        name: `image${index + 1}`
-      })).filter(item => item.url) // 过滤掉空url的文件
-      
-      // 加载二级和三级分类
-      if (product.category) {
-        await loadLevel2Categories(product.category)
-        if (product.subCategory) {
-          await loadLevel3Categories(product.subCategory)
-        }
-      }
-    }
-  } catch (error) {
-    message.error(error.message || '获取商品详情失败')
-  }
-}
-
-onMounted(() => {
-  // 加载一级分类
-  loadLevel1Categories()
-  
-  if (isEdit.value) {
-    fetchProductDetail()
-  }
-})
+ if (!formRef.value)
+ return;
+ const valid = await formRef.value.validate().catch(() => false);
+ if (!valid)
+ return;
+ if (!userStore.isAdmin) {
+ const hasCategoryPermission = permissionKeys.value.has(form.value.category) || 
+ allCategories.value.some(c => c.parentKey === form.value.category && permissionKeys.value.has(c.key));
+ const hasSubCategoryPermission = !form.value.subCategory || permissionKeys.value.has(form.value.subCategory) ||
+ (form.value.subCategory && allCategories.value.some(c => c.parentKey === form.value.subCategory && permissionKeys.value.has(c.key)));
+ const hasSubSubCategoryPermission = !form.value.subSubCategory || permissionKeys.value.has(form.value.subSubCategory);
+ if (!hasCategoryPermission) {
+ ElMessage.error('您没有该一级分类的上传权限，请先申请权限');
+ return;
+ }
+ if (!hasSubCategoryPermission) {
+ ElMessage.error('您没有该二级分类的上传权限，请先申请权限');
+ return;
+ }
+ if (!hasSubSubCategoryPermission) {
+ ElMessage.error('您没有该三级分类的上传权限，请先申请权限');
+ return;
+ }
+ }
+ submitting.value = true;
+ try {
+ if (isEdit.value) {
+ await productStore.updateProduct(route.query.id, form.value);
+ ElMessage.success('商品修改成功');
+ ElMessageBox.confirm('商品修改成功，是否前往商品管理页面？', '提示', {
+ confirmButtonText: '前往管理',
+ cancelButtonText: '继续编辑',
+ type: 'success'
+ }).then(() => {
+ router.push('/admin/products');
+ }).catch(() => {
+ });
+ }
+else {
+const result = await productStore.createProduct(form.value);
+const statusText = result?.data?.status === 'pending' ? '待审核' : '已审核';
+const statusColor = result?.data?.status === 'pending' ? '#E6A23C' : '#67C23A';
+ElMessage.success({
+message: `商品上传成功！当前状态：<span style="color: ${statusColor}; font-weight: bold;">${statusText}</span>`,
+dangerouslyUseHTMLString: true
+});
+ElMessageBox.confirm('商品上传成功，是否继续上传？', '提示', {
+ confirmButtonText: '继续上传',
+ cancelButtonText: '返回列表',
+ type: 'success'
+ }).then(() => {
+ form.value = {
+ name: '',
+ category: '',
+ subCategory: '',
+ subSubCategory: '',
+ price: 0,
+ stock: 0,
+ description: '',
+ images: []
+ };
+ fileList.value = [];
+ }).catch(() => {
+ router.push('/admin/products');
+ });
+ }
+ }
+ catch (error) {
+ console.error('提交失败:', error);
+ ElMessage.error(error.message || '提交失败，请稍后重试');
+ }
+ finally {
+ submitting.value = false;
+ }
+};
+onMounted(async () => {
+ if (!userStore.isAdmin) {
+ await loadUserPermissions();
+ }
+ await loadLevel1Categories();
+ if (isEdit.value && route.query.id) {
+ try {
+ const response = await apiClient.product.getDetail(route.query.id);
+ if (response.success && response.data) {
+ const product = response.data;
+ form.value = {
+ name: product.name || '',
+ category: product.category || '',
+ subCategory: product.subCategory || '',
+ subSubCategory: product.subSubCategory || '',
+ price: product.price || 0,
+ stock: product.stock || 0,
+ description: product.description || '',
+ images: product.images || []
+ };
+ fileList.value = (product.images || []).map(url => ({ url }));
+ if (product.category) {
+ await loadLevel2Categories(product.category);
+ if (product.subCategory) {
+ await loadLevel3Categories(product.subCategory);
+ }
+ }
+ }
+ }
+ catch (error) {
+ console.error('加载商品详情失败:', error);
+ }
+ }
+});
 </script>
 
 <style scoped>
@@ -547,8 +578,15 @@ onMounted(() => {
   padding: 20px 0;
 }
 
-.product-upload-container h2 {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+}
+
+.page-header h2 {
+  margin: 0;
   color: #333;
 }
 
@@ -559,15 +597,93 @@ onMounted(() => {
   padding: 30px;
 }
 
+.category-section {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #303133;
+}
+
+.help-btn {
+  padding: 0;
+  color: #606266;
+}
+
 .upload-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.upload-icon {
+  color: #67c23a;
+}
+
+.upload-text {
+  font-size: 14px;
+  color: #999;
+  margin-top: 8px;
+}
+
+.upload-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #999;
+}
+
+.permission-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.permission-link {
+  color: #409eff;
+  padding: 0;
+  font-size: 13px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 20px;
+}
+
+.preview-image {
+  width: 100%;
+  max-height: 600px;
+  object-fit: contain;
+}
+
 @media (max-width: 768px) {
   .upload-form {
     padding: 20px;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .category-section {
+    padding: 15px;
   }
 }
 </style>
