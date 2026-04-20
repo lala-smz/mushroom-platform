@@ -5,7 +5,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config();
+if (!process.env.DB_HOST) {
+  require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+}
 
 const { sequelize, testConnection } = require('./config/db');
 const { redisClient } = require('./config/redis');
@@ -105,14 +108,18 @@ app.use('/', publicStatic);
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: '服务运行正常'
+    message: '服务运行正常',
+    database: dbConnected ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
   });
 });
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: '服务运行正常'
+    message: '服务运行正常',
+    database: dbConnected ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -175,31 +182,26 @@ app.use((error, req, res, next) => {
   });
 });
 
-sequelize.sync({ alter: true }).then(async () => {
-  console.log('数据库同步完成');
-}).catch(err => {
-  console.error('数据库同步失败:', err);
-});
+let dbConnected = false;
 
 const startServer = async () => {
   try {
-    await testConnection();
+    await sequelize.authenticate();
+    dbConnected = true;
+    console.log('数据库连接成功');
     
-    app.listen(PORT, () => {
-      console.log(`服务器运行在 http://localhost:${PORT}`);
-      console.log(`健康检查: http://localhost:${PORT}/health`);
-    });
+    await sequelize.sync({ alter: true });
+    console.log('数据库同步完成');
   } catch (error) {
-    if (error.name === 'SequelizeConnectionError' && error.original && error.original.code === 'ER_BAD_DB_ERROR') {
-      console.error('\n数据库连接失败: 数据库不存在');
-      console.error('请先创建数据库，或执行以下命令初始化数据库:');
-      console.error('mysql -u root -p < init.sql');
-      console.error('\n如果您已经创建了数据库，但仍然遇到此错误，请检查.env文件中的数据库配置是否正确。');
-    } else {
-      console.error('服务器启动失败:', error);
-    }
-    process.exit(1);
+    console.error('数据库连接失败，将继续启动服务:', error.message);
+    dbConnected = false;
   }
+  
+  app.listen(PORT, () => {
+    console.log(`服务器运行在 http://localhost:${PORT}`);
+    console.log(`健康检查: http://localhost:${PORT}/health`);
+    console.log(`数据库状态: ${dbConnected ? '已连接' : '未连接'}`);
+  });
 };
 
 startServer();
