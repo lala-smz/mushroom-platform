@@ -145,4 +145,15 @@ const Recipe = sequelize.define('Recipe', {
   ]
 });
 
+Recipe.associate = function(models) {
+  Recipe.hasMany(models.RecipeIngredient, {
+    foreignKey: 'recipeId',
+    as: 'ingredients'
+  });
+  Recipe.hasMany(models.RecipeStep, {
+    foreignKey: 'recipeId',
+    as: 'steps'
+  });
+};
+
 module.exports = Recipe;

@@ -3,7 +3,7 @@ import axios from 'axios'
 const env = import.meta.env
 
 const api = axios.create({
-  baseURL: env.VITE_API_URL ? `${env.VITE_API_URL}/api` : 'http://localhost:3303/api',
+  baseURL: env.VITE_API_URL ? `${env.VITE_API_URL}/api` : 'http://localhost:3003/api',
   timeout: parseInt(env.VITE_API_TIMEOUT) || 60000,
   headers: {
     'Content-Type': 'application/json'
@@ -201,7 +201,8 @@ export const apiClient = {
     getCategories: () => api.get('/products/categories'),
     getCategoryTree: () => api.get('/products/categories/tree'),
     getLevel2Categories: (level1) => api.get('/products/categories/level2', { params: { level1 } }),
-    getLevel3Categories: (level2) => api.get('/products/categories/level3', { params: { level2 } })
+    getLevel3Categories: (level2) => api.get('/products/categories/level3', { params: { level2 } }),
+    getCategoryStats: () => api.get('/products/categories/stats')
   },
   
   cart: {

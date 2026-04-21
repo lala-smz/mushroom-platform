@@ -40,4 +40,11 @@ const RecipeStep = sequelize.define('RecipeStep', {
   updatedAt: 'updatedAt'
 });
 
+RecipeStep.associate = function(models) {
+  RecipeStep.belongsTo(models.Recipe, {
+    foreignKey: 'recipeId',
+    as: 'recipe'
+  });
+};
+
 module.exports = RecipeStep;

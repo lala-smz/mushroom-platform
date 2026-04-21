@@ -64,4 +64,12 @@ const MushroomBoxItem = sequelize.define('MushroomBoxItem', {
   updatedAt: 'updatedAt'
 });
 
+MushroomBoxItem.associate = function(models) {
+  MushroomBoxItem.belongsTo(models.Mushroom, {
+    foreignKey: 'mushroomId',
+    as: 'mushroom',
+    constraints: false
+  });
+};
+
 module.exports = MushroomBoxItem;

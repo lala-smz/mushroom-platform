@@ -40,4 +40,16 @@ const RecipeIngredient = sequelize.define('RecipeIngredient', {
   updatedAt: 'updatedAt'
 });
 
+RecipeIngredient.associate = function(models) {
+  RecipeIngredient.belongsTo(models.Recipe, {
+    foreignKey: 'recipeId',
+    as: 'recipe'
+  });
+  RecipeIngredient.belongsTo(models.Mushroom, {
+    foreignKey: 'mushroomId',
+    as: 'mushroom',
+    constraints: false
+  });
+};
+
 module.exports = RecipeIngredient;

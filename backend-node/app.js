@@ -22,6 +22,16 @@ const mushroomRoutes = require('./routes/mushroomRoutes');
 const mushroomBoxRoutes = require('./routes/mushroomBoxRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const syncRoutes = require('./routes/syncRoutes');
+const workRoutes = require('./routes/workRoutes');
+const recipeRoutes = require('./routes/recipeRoutes');
+const cookingVideoRoutes = require('./routes/cookingVideoRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const messageRoutes = require('./routes/messageRoutes');
+const ratingRoutes = require('./routes/ratingRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const matchingRoutes = require('./routes/matchingRoutes');
+const addressRoutes = require('./routes/addressRoutes');
+const contentManagementRoutes = require('./routes/contentManagementRoutes');
 
 const models = require('./models');
 
@@ -162,6 +172,16 @@ app.use('/api/mushrooms', mushroomRoutes);
 app.use('/api/boxes', mushroomBoxRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/works', workRoutes);
+app.use('/api/recipes', recipeRoutes);
+app.use('/api/cooking-videos', cookingVideoRoutes);
+app.use('/api/carts', cartRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/ratings', ratingRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/matching', matchingRoutes);
+app.use('/api/address', addressRoutes);
+app.use('/api/content-management', contentManagementRoutes);
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {

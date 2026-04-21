@@ -16,11 +16,54 @@
         <div class="category-section">
           <div class="section-header">
             <span class="section-title">商品分类</span>
-            <el-tooltip content="选择商品所属分类层级，您只能上传已授权分类下的商品" placement="top">
+            <el-tooltip content="选择商品所属分类层级，必须按照一级→二级→三级的顺序选择" placement="top">
               <el-button type="text" size="small" class="help-btn">
                 <el-icon :size="18"><HelpFilled /></el-icon>
               </el-button>
             </el-tooltip>
+          </div>
+
+          <!-- 分类层级状态可视化提示 -->
+          <div class="category-hierarchy-status" v-if="categoryStats">
+            <div class="hierarchy-info">
+              <div class="hierarchy-item" :class="{ active: form.category, completed: form.category }">
+                <span class="hierarchy-icon">1</span>
+                <span class="hierarchy-label">一级分类</span>
+                <span class="hierarchy-count">{{ categoryStats.level1 }} 个已创建</span>
+              </div>
+              <div class="hierarchy-arrow" :class="{ active: form.category }">→</div>
+              <div class="hierarchy-item" :class="{ active: form.subCategory, completed: form.subCategory }">
+                <span class="hierarchy-icon">2</span>
+                <span class="hierarchy-label">二级分类</span>
+                <span class="hierarchy-count">{{ categoryStats.level2 }} 个已创建</span>
+              </div>
+              <div class="hierarchy-arrow" :class="{ active: form.subCategory }">→</div>
+              <div class="hierarchy-item" :class="{ active: form.subSubCategory }">
+                <span class="hierarchy-icon">3</span>
+                <span class="hierarchy-label">三级分类</span>
+                <span class="hierarchy-count">{{ categoryStats.level3 }} 个已创建</span>
+              </div>
+            </div>
+            <div v-if="!form.category && categoryStats.level1 === 0" class="warning-message">
+              <el-alert
+                title="提示"
+                type="warning"
+                :closable="false"
+                show-icon
+              >
+                当前暂无一级分类，请先在 <a href="#/admin/product-category-management" class="alert-link">商品分类管理</a> 中创建分类层级
+              </el-alert>
+            </div>
+            <div v-else-if="form.category && !form.subCategory && currentLevel2Count === 0" class="warning-message">
+              <el-alert
+                title="提示"
+                type="info"
+                :closable="false"
+                show-icon
+              >
+                当前一级分类下暂无二级分类，您可以 <a href="#/admin/product-category-management" class="alert-link">前往创建</a> 或联系管理员添加
+              </el-alert>
+            </div>
           </div>
           
           <el-form-item label="一级分类" prop="category">
@@ -31,6 +74,12 @@
               @change="handleCategoryChange"
               :disabled="isEdit && !userStore.isAdmin"
             >
+              <template #empty>
+                <span v-if="categoryStats && categoryStats.level1 === 0">
+                  <el-button type="text" @click="goToCategoryManagement">点击前往创建一级分类</el-button>
+                </span>
+                <span v-else>暂无一级分类数据</span>
+              </template>
               <el-option
                 v-for="category in level1Categories"
                 :key="category.key"
@@ -64,6 +113,9 @@
                 <span v-else-if="level2Categories.length === 0 && !userStore.isAdmin">
                   您暂无该分类下的二级分类权限，请先申请权限
                 </span>
+                <span v-else-if="level2Categories.length === 0">
+                  <el-button type="text" @click="goToCategoryManagement">点击前往创建二级分类</el-button>
+                </span>
                 <span v-else>暂无二级分类数据</span>
               </template>
               <el-option
@@ -84,6 +136,9 @@
             >
               <template #empty>
                 <span v-if="!form.subCategory">请先选择二级分类</span>
+                <span v-else-if="level3Categories.length === 0">
+                  <el-button type="text" @click="goToCategoryManagement">点击前往创建三级分类</el-button>
+                </span>
                 <span v-else>暂无三级分类数据</span>
               </template>
               <el-option
@@ -200,7 +255,10 @@ const userPermissions = ref([]);
 const permissionKeys = ref(new Set());
 const previewDialogVisible = ref(false);
 const previewImageUrl = ref('');
-const uploadUrl = 'http://localhost:3303/api/upload';
+const categoryStats = ref(null);
+const currentLevel2Count = ref(0);
+const env = import.meta.env;
+const uploadUrl = env.VITE_API_URL ? `${env.VITE_API_URL}/api/upload` : 'http://localhost:3003/api/upload';
 const DEFAULT_PLACEHOLDER_URL = 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=mushroom%20product%20placeholder%20image&image_size=square_hd';
 const loadLevel1Categories = async () => {
  try {
@@ -294,17 +352,32 @@ const getCategoryLabel = (category) => {
  }
  return category.label + ' (无权限)';
 };
+const loadCategoryStats = async () => {
+ try {
+ const response = await apiClient.product.getCategoryStats();
+ if (response.success && response.data) {
+ categoryStats.value = response.data;
+ }
+ } catch (error) {
+ console.error('加载分类统计失败:', error);
+ }
+};
+const goToCategoryManagement = () => {
+ router.push('/admin/product-category-management');
+};
 const loadLevel2Categories = async (level1Key) => {
  level2Categories.value = [];
  level3Categories.value = [];
  form.value.subCategory = '';
  form.value.subSubCategory = '';
+ currentLevel2Count.value = 0;
  if (!level1Key)
  return;
  try {
  const response = await apiClient.product.getLevel2Categories(level1Key);
  if (response.success && response.data) {
  let categories = response.data;
+ currentLevel2Count.value = categories.length;
  if (!userStore.isAdmin) {
  categories = categories.filter(cat => 
  permissionKeys.value.has(cat.key) || 
@@ -456,7 +529,9 @@ const handleRemove = () => {
 const getImageUrl = (url) => {
  if (!url)
  return DEFAULT_PLACEHOLDER_URL;
- return url.startsWith('http') ? url : `http://localhost:3303${url}`;
+ if (url.startsWith('http'))
+ return url;
+ return env.VITE_API_URL ? `${env.VITE_API_URL}${url}` : `http://localhost:3003${url}`;
 };
 const handleImageError = (e, fallbackUrl) => {
  e.target.src = fallbackUrl;
@@ -541,7 +616,10 @@ onMounted(async () => {
  if (!userStore.isAdmin) {
  await loadUserPermissions();
  }
- await loadLevel1Categories();
+ await Promise.all([
+ loadLevel1Categories(),
+ loadCategoryStats()
+ ]);
  if (isEdit.value && route.query.id) {
  try {
  const response = await apiClient.product.getDetail(route.query.id);
@@ -609,6 +687,104 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   margin-bottom: 15px;
+}
+
+.category-hierarchy-status {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+}
+
+.hierarchy-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hierarchy-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  min-width: 120px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.hierarchy-item.active {
+  background: #e8f4fd;
+  border-color: #409eff;
+}
+
+.hierarchy-item.completed {
+  background: #f0f9eb;
+  border-color: #67c23a;
+}
+
+.hierarchy-icon {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  background: #e4e7ed;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.hierarchy-item.active .hierarchy-icon {
+  background: #409eff;
+  color: #fff;
+}
+
+.hierarchy-item.completed .hierarchy-icon {
+  background: #67c23a;
+  color: #fff;
+}
+
+.hierarchy-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.hierarchy-count {
+  font-size: 12px;
+  color: #909399;
+}
+
+.hierarchy-arrow {
+  font-size: 20px;
+  color: #d9d9d9;
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.hierarchy-arrow.active {
+  color: #409eff;
+}
+
+.warning-message {
+  margin-top: 15px;
+}
+
+.alert-link {
+  color: #409eff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.alert-link:hover {
+  color: #66b1ff;
 }
 
 .section-title {

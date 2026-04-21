@@ -1,23 +1,34 @@
 [build]
 builder = "nixpacks"
+nixpacksPlan = """
+phases:
+  install:
+    commands:
+      - npm install
+      - cd backend-node && npm install
+      - cd ../frontend-vue3 && npm install --omit=dev
+  build:
+    commands:
+      - cd frontend-vue3 && NODE_OPTIONS='--max-old-space-size=4096' npm run build
+      - cp -r frontend-vue3/dist backend-node/public
+"""
 
 [deploy]
-startCommand = "npm run deploy:prod"
+startCommand = "cd backend-node && npm start"
 
 [env]
 NODE_ENV = "production"
-PORT = "3303"
+PORT = "3000"
 
 [services]
 mysql = "mysql"
 redis = "redis"
 
 [variables]
-MYSQL_HOST = "${{ MYSQLHOST }}"
-MYSQL_PORT = "${{ MYSQLPORT }}"
-MYSQL_USER = "${{ MYSQLUSER }}"
-MYSQL_PASSWORD = "${{ MYSQLPASSWORD }}"
-MYSQL_DATABASE = "${{ MYSQLDATABASE }}"
+DB_HOST = "${{ MYSQLHOST }}"
+DB_PORT = "${{ MYSQLPORT }}"
+DB_USER = "${{ MYSQLUSER }}"
+DB_PASSWORD = "${{ MYSQLPASSWORD }}"
+DB_NAME = "${{ MYSQLDATABASE }}"
 REDIS_URL = "${{ REDIS_URL }}"
 JWT_SECRET = "58da95d558bab65ec44b1ef6dbd479843d6f9353bd8b67d8119c74921199e383"
-API_URL = "https://your-app-name.up.railway.app"

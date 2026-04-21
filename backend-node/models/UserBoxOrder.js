@@ -114,4 +114,11 @@ const UserBoxOrder = sequelize.define('UserBoxOrder', {
   updatedAt: 'updatedAt'
 });
 
+UserBoxOrder.associate = function(models) {
+  UserBoxOrder.belongsTo(models.MushroomBox, {
+    foreignKey: 'boxId',
+    as: 'box'
+  });
+};
+
 module.exports = UserBoxOrder;

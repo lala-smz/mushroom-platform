@@ -8,28 +8,39 @@ const { getLevel1Categories } = require('../config/categoryConfig');
 
 const validateCategoryFromDB = async (level1, level2, level3) => {
   try {
+    // 检查一级分类是否存在
     const level1Cat = await ProductCategory.findOne({
       where: { key: level1, level: 1, status: 'active' }
     });
     if (!level1Cat) {
-      return { valid: false, message: '无效的一级分类' };
+      return { valid: false, message: '无效的一级分类，请先在商品分类管理中创建一级分类' };
     }
 
+    // 如果提供了二级分类，检查是否存在且属于该一级分类
     if (level2) {
       const level2Cat = await ProductCategory.findOne({
         where: { key: level2, level: 2, parentKey: level1, status: 'active' }
       });
       if (!level2Cat) {
-        return { valid: false, message: '无效的二级分类' };
+        return { valid: false, message: `无效的二级分类或该二级分类不属于选中的一级分类"${level1Cat.label}"，请先在商品分类管理中创建二级分类` };
       }
 
+      // 如果提供了三级分类，检查是否存在且属于该二级分类
       if (level3) {
         const level3Cat = await ProductCategory.findOne({
           where: { key: level3, level: 3, parentKey: level2, status: 'active' }
         });
         if (!level3Cat) {
-          return { valid: false, message: '无效的三级分类' };
+          return { valid: false, message: `无效的三级分类或该三级分类不属于选中的二级分类"${level2Cat.label}"，请先在商品分类管理中创建三级分类` };
         }
+      }
+    } else {
+      // 如果没有选择二级分类，检查该一级分类下是否有二级分类
+      const level2Count = await ProductCategory.count({
+        where: { parentKey: level1, level: 2, status: 'active' }
+      });
+      if (level2Count === 0) {
+        return { valid: false, message: `一级分类"${level1Cat.label}"下暂无二级分类，请先在商品分类管理中为该分类创建二级分类` };
       }
     }
 

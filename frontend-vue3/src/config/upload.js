@@ -3,15 +3,15 @@ const env = import.meta.env;
 export const uploadConfig = {
   uploadUrl: env.VITE_API_URL 
     ? `${env.VITE_API_URL}/api/works/upload` 
-    : 'http://localhost:3303/api/works/upload',
+    : 'http://localhost:3003/api/works/upload',
   
   imageUrl: env.VITE_API_URL 
     ? `${env.VITE_API_URL}/uploads/` 
-    : 'http://localhost:3303/uploads/',
+    : 'http://localhost:3003/uploads/',
   
   mushroomUrl: env.VITE_API_URL 
     ? `${env.VITE_API_URL}/mushrooms/` 
-    : 'http://localhost:3303/mushrooms/',
+    : 'http://localhost:3003/mushrooms/',
   
   maxFileSize: parseInt(env.VITE_MAX_FILE_SIZE) || 10 * 1024 * 1024,
   
@@ -19,7 +19,7 @@ export const uploadConfig = {
 }
 
 export const apiConfig = {
-  baseURL: env.VITE_API_URL || 'http://localhost:3303/api',
+  baseURL: env.VITE_API_URL || 'http://localhost:3003/api',
   
   timeout: parseInt(env.VITE_API_TIMEOUT) || 60000,
   

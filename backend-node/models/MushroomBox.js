@@ -108,4 +108,11 @@ const MushroomBox = sequelize.define('MushroomBox', {
   updatedAt: 'updatedAt'
 });
 
+MushroomBox.associate = function(models) {
+  MushroomBox.hasMany(models.MushroomBoxItem, {
+    foreignKey: 'boxId',
+    as: 'items'
+  });
+};
+
 module.exports = MushroomBox;
