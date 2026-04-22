@@ -50,7 +50,7 @@ app.use(compression({
 }));
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:3001', 'http://localhost:3003', 'https://lala-smz.github.io', 'https://web-production-1993a.up.railway.app'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:3001', 'http://localhost:3003', 'https://lala-smz.github.io', 'https://web-production-1993a.up.railway.app', 'https://web-production-7ded2.up.railway.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true
